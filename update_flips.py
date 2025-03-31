@@ -72,11 +72,20 @@ def check_recent_flips(df, symbol, days=5):
         prev = df.iloc[i - 1]
         curr = df.iloc[i]
         flip_date = str(curr.name.date())
+
         if prev['SUPERT_10_3.0'] > prev['close'] and curr['SUPERT_10_3.0'] < curr['close']:
-            if seen_flips.get(symbol) != flip_date:
-                seen_flips[symbol] = flip_date
-                return flip_date
-    return None
+            seen_flips[symbol] = {
+                "date": flip_date,
+                "type": "green"
+            }
+            return
+
+        elif prev['SUPERT_10_3.0'] < prev['close'] and curr['SUPERT_10_3.0'] > curr['close']:
+            seen_flips[symbol] = {
+                "date": flip_date,
+                "type": "red"
+            }
+            return
 
 def scan():
     for symbol in SP500:
