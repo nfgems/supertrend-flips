@@ -1,7 +1,6 @@
-
 import pandas as pd
 import pandas_ta as ta
-from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.historical.stock import StockHistoricalDataClient 
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 from datetime import datetime, timedelta
@@ -44,7 +43,6 @@ SP500 = [
     "WRB", "BEN", "GRMN", "BBY", "DHI", "TXT", "PFG", "TPR", "HSIC",
     "LNT", "CPB", "ROL", "NI", "K", "IRM", "PNW", "AIZ", "HWM", "WHR"
 ]
-
 
 seen_flips = {}
 
@@ -95,3 +93,4 @@ def scan():
 
 if __name__ == "__main__":
     scan()
+
