@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Supertrend Flips</title>
   <style>
     body {
@@ -17,37 +17,44 @@
       font-size: 2rem;
       margin-top: 1rem;
     }
-    .filters {
+    .filters, .subfilters {
       text-align: center;
       margin: 1rem 0;
     }
-    .filters button {
+    .filters button, .subfilters button {
       background-color: #111;
       color: #00ff00;
       border: 1px solid #00ff00;
       padding: 0.5rem 1rem;
-      margin: 0 0.5rem;
+      margin: 0.3rem;
       border-radius: 4px;
       cursor: pointer;
       font-weight: bold;
     }
-    .filters button.active {
+    .filters button.active, .subfilters button.active {
       background-color: #00ff00;
       color: black;
     }
     .symbol-section {
       max-width: 700px;
-      margin: 0 auto;
-      padding: 1rem;
+      margin: 0 auto 2rem;
+      padding: 0 1rem;
     }
     .symbol-name {
       font-size: 1.3rem;
       font-weight: bold;
       color: white;
       margin-top: 1.5rem;
+      border-bottom: 1px solid #333;
+      padding-bottom: 0.3rem;
       cursor: pointer;
     }
-    .flip-box {
+    .symbol-name .hint {
+      font-size: 0.9rem;
+      color: #999;
+      margin-left: 10px;
+    }
+    .flip {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -57,98 +64,143 @@
       border-radius: 8px;
       box-shadow: 0 0 10px #00ff0040;
     }
-    .green { color: #00ff00; font-weight: bold; }
-    .red { color: #ff0000; font-weight: bold; }
-    .date { color: #ffd700; font-size: 0.95rem; }
-    .hidden { display: none; }
-    .dropdown {
-      margin-left: 1rem;
-      background: #222;
-      padding: 0.5rem;
-      border-radius: 6px;
+    .emoji {
+      font-size: 1.4rem;
+      margin-right: 0.6rem;
+    }
+    .symbol {
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+    .flipped {
+      font-size: 1rem;
+      color: #999;
+      margin: 0 0.5rem;
+    }
+    .green {
+      color: #00ff00;
+      font-weight: bold;
+    }
+    .red {
+      color: #ff0000;
+      font-weight: bold;
+    }
+    .date {
+      color: #ffd700;
+      font-size: 0.95rem;
     }
     @media (max-width: 600px) {
-      .flip-box { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+      .flip {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
     }
   </style>
 </head>
 <body>
   <h1>📈 Supertrend Flip Tracker</h1>
+
   <div class="filters">
     <button data-filter="all" class="active">All</button>
     <button data-filter="green">Bullish 🐂</button>
     <button data-filter="red">Bearish 🐻</button>
     <button data-filter="recent">Most Recent</button>
   </div>
+
+  <div class="subfilters" id="subfilters" style="display: none">
+    <button data-sort="alphabetical" class="active">A-Z</button>
+    <button data-sort="recent">Most Recent</button>
+  </div>
+
   <div id="flipContainer" class="symbol-section"></div>
+
   <script>
+    let flipsData = {};
+    let currentFilter = "all";
+    let currentSort = "alphabetical";
+
+    function renderFlips() {
+      const container = document.getElementById("flipContainer");
+      container.innerHTML = "";
+      const entries = Object.entries(flipsData);
+
+      let filtered = entries.filter(([_, flips]) => Array.isArray(flips) && flips.length);
+      if (currentFilter === "green" || currentFilter === "red") {
+        filtered = filtered.filter(([_, flips]) => flips[0].type === currentFilter);
+      }
+
+      if (currentSort === "recent") {
+        filtered.sort((a, b) => b[1][0].date.localeCompare(a[1][0].date));
+      } else {
+        filtered.sort((a, b) => a[0].localeCompare(b[0]));
+      }
+
+      filtered.forEach(([symbol, flips]) => {
+        const section = document.createElement("div");
+
+        const header = document.createElement("div");
+        header.className = "symbol-name";
+        header.innerHTML = `${symbol} <span class="hint">📂 View History</span>`;
+
+        const historyContainer = document.createElement("div");
+        historyContainer.style.display = "none";
+
+        flips.forEach(flip => {
+          const flipBox = document.createElement("div");
+          flipBox.className = `flip ${flip.type}`;
+
+          const emoji = flip.type === "green" ? "🐂" : "🐻";
+          flipBox.innerHTML = `
+            <div>
+              <span class="emoji">${emoji}</span>
+              <span class="flipped">flipped</span>
+              <span class="${flip.type}">${flip.type.toUpperCase()}</span>
+            </div>
+            <div class="date">${flip.date}</div>
+          `;
+
+          historyContainer.appendChild(flipBox);
+        });
+
+        header.addEventListener("click", () => {
+          historyContainer.style.display = historyContainer.style.display === "none" ? "block" : "none";
+        });
+
+        section.appendChild(header);
+        section.appendChild(historyContainer);
+        container.appendChild(section);
+      });
+    }
+
     fetch("public_flips.json")
       .then(res => res.json())
       .then(data => {
-        const container = document.getElementById("flipContainer");
-        const symbolElements = [];
-
-        Object.entries(data).forEach(([symbol, flips]) => {
-          if (!Array.isArray(flips) || flips.length === 0) return;
-
-          const recent = flips[0];
-          const section = document.createElement("div");
-          section.classList.add("symbol-wrapper");
-
-          const title = document.createElement("div");
-          title.className = "symbol-name";
-          title.textContent = symbol;
-
-          const recentBox = document.createElement("div");
-          recentBox.className = `flip-box ${recent.type}`;
-          recentBox.innerHTML = `
-            <div><strong class="${recent.type}">${recent.type.toUpperCase()}</strong></div>
-            <div class="date">${recent.date}</div>
-          `;
-
-          const dropdown = document.createElement("div");
-          dropdown.className = "dropdown hidden";
-          flips.slice(1).forEach(flip => {
-            const div = document.createElement("div");
-            div.className = `flip-box ${flip.type}`;
-            div.innerHTML = `
-              <div><strong class="${flip.type}">${flip.type.toUpperCase()}</strong></div>
-              <div class="date">${flip.date}</div>
-            `;
-            dropdown.appendChild(div);
-          });
-
-          title.addEventListener("click", () => {
-            dropdown.classList.toggle("hidden");
-          });
-
-          section.appendChild(title);
-          section.appendChild(recentBox);
-          section.appendChild(dropdown);
-          container.appendChild(section);
-          symbolElements.push({ element: section, type: recent.type, date: recent.date });
-        });
-
-        document.querySelectorAll(".filters button").forEach(btn => {
-          btn.addEventListener("click", () => {
-            document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            const filter = btn.dataset.filter;
-
-            symbolElements.forEach(({ element, type, date }) => {
-              if (filter === "all") {
-                element.style.display = "block";
-              } else if (filter === "green" || filter === "red") {
-                element.style.display = type === filter ? "block" : "none";
-              } else if (filter === "recent") {
-                symbolElements.sort((a, b) => new Date(b.date) - new Date(a.date));
-                container.innerHTML = "";
-                symbolElements.forEach(s => container.appendChild(s.element));
-              }
-            });
-          });
-        });
+        flipsData = data;
+        renderFlips();
       });
+
+    document.querySelectorAll(".filters button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentFilter = btn.dataset.filter;
+
+        document.getElementById("subfilters").style.display = ["green", "red"].includes(currentFilter) ? "block" : "none";
+
+        renderFlips();
+      });
+    });
+
+    document.querySelectorAll(".subfilters button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".subfilters button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentSort = btn.dataset.sort;
+        renderFlips();
+      });
+    });
   </script>
 </body>
 </html>
