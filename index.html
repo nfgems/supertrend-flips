@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Supertrend Flips</title>
   <style>
     body {
@@ -11,19 +11,16 @@
       background-color: black;
       color: white;
     }
-
     h1 {
       text-align: center;
       color: #00ff00;
       font-size: 2rem;
       margin-top: 1rem;
     }
-
     .filters {
       text-align: center;
       margin: 1rem 0;
     }
-
     .filters button {
       background-color: #111;
       color: #00ff00;
@@ -34,28 +31,23 @@
       cursor: pointer;
       font-weight: bold;
     }
-
     .filters button.active {
       background-color: #00ff00;
       color: black;
     }
-
     .symbol-section {
       max-width: 700px;
-      margin: 0 auto 2rem;
-      padding: 0 1rem;
+      margin: 0 auto;
+      padding: 1rem;
     }
-
     .symbol-name {
       font-size: 1.3rem;
       font-weight: bold;
       color: white;
       margin-top: 1.5rem;
-      border-bottom: 1px solid #333;
-      padding-bottom: 0.3rem;
+      cursor: pointer;
     }
-
-    .flip {
+    .flip-box {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -65,123 +57,93 @@
       border-radius: 8px;
       box-shadow: 0 0 10px #00ff0040;
     }
-
-    .emoji {
-      font-size: 1.4rem;
-      margin-right: 0.6rem;
+    .green { color: #00ff00; font-weight: bold; }
+    .red { color: #ff0000; font-weight: bold; }
+    .date { color: #ffd700; font-size: 0.95rem; }
+    .hidden { display: none; }
+    .dropdown {
+      margin-left: 1rem;
+      background: #222;
+      padding: 0.5rem;
+      border-radius: 6px;
     }
-
-    .symbol {
-      color: white;
-      font-weight: bold;
-      font-size: 1.1rem;
-    }
-
-    .flipped {
-      font-size: 1rem;
-      color: #999;
-      margin: 0 0.5rem;
-    }
-
-    .green {
-      color: #00ff00;
-      font-weight: bold;
-    }
-
-    .red {
-      color: #ff0000;
-      font-weight: bold;
-    }
-
-    .date {
-      color: #ffd700;
-      font-size: 0.95rem;
-    }
-
     @media (max-width: 600px) {
-      .flip {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-      }
-
-      .symbol-name {
-        font-size: 1.1rem;
-      }
-
-      .date {
-        font-size: 0.85rem;
-      }
-
-      .filters button {
-        margin: 0.3rem;
-        padding: 0.4rem 0.8rem;
-      }
+      .flip-box { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
     }
   </style>
 </head>
 <body>
   <h1>📈 Supertrend Flip Tracker</h1>
-
   <div class="filters">
     <button data-filter="all" class="active">All</button>
     <button data-filter="green">Bullish 🐂</button>
     <button data-filter="red">Bearish 🐻</button>
+    <button data-filter="recent">Most Recent</button>
   </div>
-
   <div id="flipContainer" class="symbol-section"></div>
-
   <script>
     fetch("public_flips.json")
       .then(res => res.json())
       .then(data => {
         const container = document.getElementById("flipContainer");
+        const symbolElements = [];
 
         Object.entries(data).forEach(([symbol, flips]) => {
-          if (!Array.isArray(flips)) return;
+          if (!Array.isArray(flips) || flips.length === 0) return;
 
+          const recent = flips[0];
           const section = document.createElement("div");
-          const header = document.createElement("div");
-          header.className = "symbol-name";
-          header.textContent = symbol;
-          section.appendChild(header);
+          section.classList.add("symbol-wrapper");
 
-          flips.forEach(flip => {
-            const flipBox = document.createElement("div");
-            flipBox.className = `flip ${flip.type}`;
+          const title = document.createElement("div");
+          title.className = "symbol-name";
+          title.textContent = symbol;
 
-            const emoji = flip.type === "green" ? "🐂" : "🐻";
-            const typeClass = flip.type === "green" ? "green" : "red";
+          const recentBox = document.createElement("div");
+          recentBox.className = `flip-box ${recent.type}`;
+          recentBox.innerHTML = `
+            <div><strong class="${recent.type}">${recent.type.toUpperCase()}</strong></div>
+            <div class="date">${recent.date}</div>
+          `;
 
-            flipBox.innerHTML = `
-              <div>
-                <span class="emoji">${emoji}</span>
-                <span class="flipped">flipped</span>
-                <span class="${typeClass}">${flip.type.toUpperCase()}</span>
-              </div>
+          const dropdown = document.createElement("div");
+          dropdown.className = "dropdown hidden";
+          flips.slice(1).forEach(flip => {
+            const div = document.createElement("div");
+            div.className = `flip-box ${flip.type}`;
+            div.innerHTML = `
+              <div><strong class="${flip.type}">${flip.type.toUpperCase()}</strong></div>
               <div class="date">${flip.date}</div>
             `;
-
-            flipBox.setAttribute("data-type", flip.type);
-            section.appendChild(flipBox);
+            dropdown.appendChild(div);
           });
 
+          title.addEventListener("click", () => {
+            dropdown.classList.toggle("hidden");
+          });
+
+          section.appendChild(title);
+          section.appendChild(recentBox);
+          section.appendChild(dropdown);
           container.appendChild(section);
+          symbolElements.push({ element: section, type: recent.type, date: recent.date });
         });
 
-        const filterButtons = document.querySelectorAll(".filters button");
-        filterButtons.forEach(btn => {
+        document.querySelectorAll(".filters button").forEach(btn => {
           btn.addEventListener("click", () => {
-            filterButtons.forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
+            const filter = btn.dataset.filter;
 
-            const type = btn.getAttribute("data-filter");
-            const allFlips = document.querySelectorAll(".flip");
-            allFlips.forEach(f => {
-              if (type === "all" || f.getAttribute("data-type") === type) {
-                f.style.display = "flex";
-              } else {
-                f.style.display = "none";
+            symbolElements.forEach(({ element, type, date }) => {
+              if (filter === "all") {
+                element.style.display = "block";
+              } else if (filter === "green" || filter === "red") {
+                element.style.display = type === filter ? "block" : "none";
+              } else if (filter === "recent") {
+                symbolElements.sort((a, b) => new Date(b.date) - new Date(a.date));
+                container.innerHTML = "";
+                symbolElements.forEach(s => container.appendChild(s.element));
               }
             });
           });
@@ -190,4 +152,3 @@
   </script>
 </body>
 </html>
-
