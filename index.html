@@ -1,30 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Supertrend Flips</title>
   <style>
     body {
-      background-color: black;
-      color: white;
-      font-family: monospace;
+      margin: 0;
+      padding: 1rem;
+      background-color: #000000;
+      font-family: 'Courier New', monospace;
+      color: #ffffff;
     }
+
+    h1 {
+      text-align: center;
+      color: #00ff00;
+      font-size: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .flip-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
     .flip {
-      margin: 5px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #111;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #00ff0077;
+      transition: transform 0.2s;
     }
+
+    .flip:hover {
+      transform: scale(1.02);
+    }
+
+    .emoji {
+      font-size: 1.5rem;
+      margin-right: 0.75rem;
+    }
+
+    .symbol {
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+
+    .flipped {
+      font-size: 1rem;
+      color: #999999;
+      margin: 0 0.5rem;
+    }
+
     .green {
       color: #00FF00;
+      font-weight: bold;
     }
+
     .red {
       color: #FF0000;
+      font-weight: bold;
     }
+
     .date {
       color: #FFD700;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .flip {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .symbol {
+        font-size: 1.1rem;
+      }
+
+      .date {
+        font-size: 0.9rem;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Recent Supertrend Flips</h1>
-  <ul id="flipList"></ul>
+  <h1>📈 Supertrend Flip Tracker</h1>
+  <div class="flip-container" id="flipList"></div>
 
   <script>
     fetch("public_flips.json")
@@ -33,14 +105,23 @@
         const list = document.getElementById("flipList");
 
         Object.entries(data).forEach(([symbol, flip]) => {
-          const li = document.createElement("li");
-          li.className = "flip";
+          const container = document.createElement("div");
+          container.className = "flip";
 
-          const typeClass = flip.type === "green" ? "green" : "red";
           const emoji = flip.type === "green" ? "🐂" : "🐻";
+          const typeClass = flip.type === "green" ? "green" : "red";
 
-          li.innerHTML = `${emoji} <span style="color: white;">${symbol}</span> flipped <span class="${typeClass}">${flip.type.toUpperCase()}</span> on <span class="date">${flip.date}</span>`;
-          list.appendChild(li);
+          container.innerHTML = `
+            <div>
+              <span class="emoji">${emoji}</span>
+              <span class="symbol">${symbol}</span>
+              <span class="flipped">flipped</span>
+              <span class="${typeClass}">${flip.type.toUpperCase()}</span>
+            </div>
+            <div class="date">${flip.date}</div>
+          `;
+
+          list.appendChild(container);
         });
       });
   </script>
