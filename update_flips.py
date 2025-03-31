@@ -9,7 +9,6 @@ import json
 
 api_key = os.getenv("ALPACA_API_KEY")
 secret_key = os.getenv("ALPACA_SECRET_KEY")
-
 client = StockHistoricalDataClient(api_key, secret_key)
 
 SP500 = [
@@ -44,7 +43,15 @@ SP500 = [
     "LNT", "CPB", "ROL", "NI", "K", "IRM", "PNW", "AIZ", "HWM", "WHR"
 ]
 
-seen_flips = {}
+def load_flip_history():
+    if os.path.exists("public_flips.json"):
+        with open("public_flips.json", "r") as f:
+            return json.load(f)
+    return {}
+
+def save_flip_history(data):
+    with open("public_flips.json", "w") as f:
+        json.dump(data, f, indent=2)
 
 def get_bars(symbol):
     end = datetime.utcnow()
@@ -65,41 +72,43 @@ def calculate_supertrend(df):
     st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3.0)
     return df.join(st)
 
-def check_recent_flips(df, symbol, days=5):
-    for i in range(-days, -1):
-        if i < -len(df):
-            continue
+def detect_flips(df, symbol, existing):
+    flips = existing.get(symbol, [])
+    recorded_dates = {entry["date"] for entry in flips}
+    new_flips = []
+
+    for i in range(1, len(df)):
         prev = df.iloc[i - 1]
         curr = df.iloc[i]
-        flip_date = str(curr.name.date())
+
+        date_str = str(curr.name.date())
+        if date_str in recorded_dates:
+            continue
 
         if prev['SUPERT_10_3.0'] > prev['close'] and curr['SUPERT_10_3.0'] < curr['close']:
-            seen_flips[symbol] = {
-                "date": flip_date,
-                "type": "green"
-            }
-            return
-
+            new_flips.append({"date": date_str, "type": "green"})
         elif prev['SUPERT_10_3.0'] < prev['close'] and curr['SUPERT_10_3.0'] > curr['close']:
-            seen_flips[symbol] = {
-                "date": flip_date,
-                "type": "red"
-            }
-            return
+            new_flips.append({"date": date_str, "type": "red"})
+
+    if new_flips:
+        flips.extend(new_flips)
+        flips.sort(key=lambda x: x["date"], reverse=True) 
+        existing[symbol] = flips
 
 def scan():
+    flip_data = load_flip_history()
+
     for symbol in SP500:
         try:
             df = get_bars(symbol)
             if df is None or len(df) < 6:
                 continue
             df = calculate_supertrend(df)
-            check_recent_flips(df, symbol)
+            detect_flips(df, symbol, flip_data)
         except Exception as e:
             print(f"{symbol} error: {e}")
 
-    with open("public_flips.json", "w") as f:
-        json.dump(seen_flips, f, indent=2)
+    save_flip_history(flip_data)
 
 if __name__ == "__main__":
     scan()
