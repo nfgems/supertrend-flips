@@ -37,8 +37,9 @@
           li.className = "flip";
 
           const typeClass = flip.type === "green" ? "green" : "red";
+          const emoji = flip.type === "green" ? "🐂" : "🐻";
 
-          li.innerHTML = `<span style="color: white;">${symbol}</span> flipped <span class="${typeClass}">${flip.type.toUpperCase()}</span> on <span class="date">${flip.date}</span>`;
+          li.innerHTML = `${emoji} <span style="color: white;">${symbol}</span> flipped <span class="${typeClass}">${flip.type.toUpperCase()}</span> on <span class="date">${flip.date}</span>`;
           list.appendChild(li);
         });
       });
