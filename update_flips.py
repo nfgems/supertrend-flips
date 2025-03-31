@@ -53,7 +53,8 @@ def get_bars(symbol):
         symbol_or_symbols=symbol,
         timeframe=TimeFrame.Day,
         start=start,
-        end=end
+        end=end,
+        feed='iex'
     )
     bars = client.get_stock_bars(request).df
     if bars.empty or symbol not in bars.index.levels[0]:
