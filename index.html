@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Supertrend Flips</title>
+</head>
+<body>
+  <h1>Recent Supertrend Flips</h1>
+  <ul id="flipList"></ul>
+  <script>
+    fetch('public_flips.json')
+      .then(res => res.json())
+      .then(data => {
+        const ul = document.getElementById('flipList');
+        Object.entries(data).forEach(([ticker, date]) => {
+          const li = document.createElement('li');
+          li.textContent = `${ticker} flipped GREEN on ${date}`;
+          ul.appendChild(li);
+        });
+      });
+  </script>
+</body>
+</html>
