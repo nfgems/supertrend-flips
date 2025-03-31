@@ -80,8 +80,8 @@ def detect_flips(df, symbol, existing):
     for i in range(1, len(df)):
         prev = df.iloc[i - 1]
         curr = df.iloc[i]
-
         date_str = str(curr.name.date())
+
         if date_str in recorded_dates:
             continue
 
@@ -92,7 +92,7 @@ def detect_flips(df, symbol, existing):
 
     if new_flips:
         flips.extend(new_flips)
-        flips.sort(key=lambda x: x["date"], reverse=True) 
+        flips.sort(key=lambda x: x["date"], reverse=True)
         existing[symbol] = flips
 
 def scan():
