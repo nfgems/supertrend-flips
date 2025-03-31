@@ -2,19 +2,44 @@
 <html>
 <head>
   <title>Supertrend Flips</title>
+  <style>
+    body {
+      background-color: black;
+      color: white;
+      font-family: monospace;
+    }
+    .flip {
+      margin: 5px 0;
+    }
+    .green {
+      color: #00FF00;
+    }
+    .red {
+      color: #FF0000;
+    }
+    .date {
+      color: #FFD700;
+    }
+  </style>
 </head>
 <body>
   <h1>Recent Supertrend Flips</h1>
   <ul id="flipList"></ul>
+
   <script>
-    fetch('public_flips.json')
+    fetch("public_flips.json")
       .then(res => res.json())
       .then(data => {
-        const ul = document.getElementById('flipList');
-        Object.entries(data).forEach(([ticker, date]) => {
-          const li = document.createElement('li');
-          li.textContent = `${ticker} flipped GREEN on ${date}`;
-          ul.appendChild(li);
+        const list = document.getElementById("flipList");
+
+        Object.entries(data).forEach(([symbol, flip]) => {
+          const li = document.createElement("li");
+          li.className = "flip";
+
+          const typeClass = flip.type === "green" ? "green" : "red";
+
+          li.innerHTML = `<span style="color: white;">${symbol}</span> flipped <span class="${typeClass}">${flip.type.toUpperCase()}</span> on <span class="date">${flip.date}</span>`;
+          list.appendChild(li);
         });
       });
   </script>
