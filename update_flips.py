@@ -54,7 +54,7 @@ SP500 = [
 
 TIMEFRAMES = {
     "1d": TimeFrame.Day,
-    "1w": TimeFrame.Week
+    "1w": TimeFrame.Week,
     "1m": TimeFrame.Month
 }
 
