@@ -90,13 +90,24 @@ def get_bars(symbol, retries=3, delay=3):
     for attempt in range(retries):
         try:
             bars = client.get_stock_bars(request).df
-            if bars.empty or symbol not in bars.index.levels[0]:
+
+            if bars.empty:
                 logger.warning(f"{symbol} - No data returned from Alpaca.")
                 return None
-            return bars.xs(symbol, level=0)
+
+            # If it's a multi-indexed DataFrame (multi-symbol), extract this symbol
+            if isinstance(bars.index, pd.MultiIndex):
+                if symbol not in bars.index.levels[0]:
+                    logger.warning(f"{symbol} - Not found in multi-indexed response.")
+                    return None
+                bars = bars.xs(symbol, level=0)
+
+            return bars
+
         except Exception as e:
             logger.warning(f"{symbol} - Retry {attempt + 1}/{retries}: {e}")
             time.sleep(delay)
+
     logger.error(f"{symbol} - Failed after {retries} retries.")
     return None
 
