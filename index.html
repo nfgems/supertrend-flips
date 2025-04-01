@@ -19,29 +19,30 @@
       margin-top: 1rem;
     }
 
-    .filters {
-      text-align: center;
+    .filters, .sub-filters {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
       margin: 1rem 0;
     }
 
-    .filters button {
+    .filters button, .sub-filters button {
       background-color: #111;
       color: #00ff00;
       border: 1px solid #00ff00;
       padding: 0.5rem 1rem;
-      margin: 0 0.5rem;
       border-radius: 4px;
       cursor: pointer;
       font-weight: bold;
     }
 
-    .filters button.active {
+    .filters button.active, .sub-filters button.active {
       background-color: #00ff00;
       color: black;
     }
 
     .sub-filters {
-      text-align: center;
       margin-top: -0.5rem;
       margin-bottom: 1rem;
     }
@@ -51,15 +52,7 @@
       color: #ccc;
       border: 1px solid #444;
       padding: 0.3rem 0.7rem;
-      margin: 0 0.3rem;
-      border-radius: 4px;
-      cursor: pointer;
       font-size: 0.85rem;
-    }
-
-    .sub-filters button.active {
-      background-color: #00ff00;
-      color: black;
     }
 
     .symbol-section {
@@ -91,11 +84,12 @@
     .flip-left {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
     }
 
     .emoji {
       font-size: 1.4rem;
-      margin-right: 0.6rem;
     }
 
     .symbol {
@@ -107,7 +101,6 @@
     .flipped {
       font-size: 1rem;
       color: #999;
-      margin: 0 0.5rem;
     }
 
     .green {
@@ -121,7 +114,6 @@
     }
 
     .history-toggle {
-      margin-left: 0.6rem;
       font-size: 1rem;
       cursor: pointer;
       color: #888;
@@ -183,24 +175,22 @@
 
         function renderFlips() {
           container.innerHTML = "";
-          let entries = Object.entries(data);
+          let entries = Object.entries(data).filter(([_, flips]) => Array.isArray(flips) && flips.length > 0);
 
           if (state.activeFilter === "recent") {
-            entries = entries.filter(e => Array.isArray(e[1]) && e[1].length > 0);
             entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+          } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
+            entries = entries.filter(([_, flips]) => flips[0].type === state.activeFilter);
+            entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+          } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "alpha") {
+            entries = entries.filter(([_, flips]) => flips[0].type === state.activeFilter);
+            entries.sort((a, b) => a[0].localeCompare(b[0]));
           } else {
-            if (state.sortBy === "recent") {
-              entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
-            } else {
-              entries.sort((a, b) => a[0].localeCompare(b[0]));
-            }
+            entries.sort((a, b) => a[0].localeCompare(b[0]));
           }
 
           entries.forEach(([symbol, flips]) => {
-            if (!Array.isArray(flips) || flips.length === 0) return;
             const latest = flips[0];
-
-            if (state.activeFilter !== "all" && state.activeFilter !== "recent" && state.activeFilter !== latest.type) return;
 
             const box = document.createElement("div");
             box.className = `flip ${latest.type}`;
@@ -250,7 +240,7 @@
             document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
             state.activeFilter = btn.getAttribute("data-filter");
-            subFilters.style.display = (state.activeFilter === "green" || state.activeFilter === "red") ? "block" : "none";
+            subFilters.style.display = (state.activeFilter === "green" || state.activeFilter === "red") ? "flex" : "none";
             renderFlips();
           });
         });
