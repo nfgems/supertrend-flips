@@ -19,6 +19,22 @@
       margin-top: 1rem;
     }
 
+    .search-bar {
+      text-align: center;
+      margin: 1rem 0 -0.5rem;
+    }
+
+    .search-bar input {
+      background-color: #111;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      width: 250px;
+      max-width: 90%;
+    }
+
     .filters, .sub-filters {
       display: flex;
       flex-wrap: wrap;
@@ -148,6 +164,10 @@
 <body>
   <h1>📈 Supertrend Flip Tracker</h1>
 
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search ticker..." />
+  </div>
+
   <div class="filters">
     <button data-filter="all" class="active">All</button>
     <button data-filter="green">Bullish 🐂</button>
@@ -170,12 +190,18 @@
         const subFilters = document.getElementById("subFilters");
         const state = {
           activeFilter: "all",
-          sortBy: "alpha"
+          sortBy: "alpha",
+          searchQuery: ""
         };
 
         function renderFlips() {
           container.innerHTML = "";
-          let entries = Object.entries(data).filter(([_, flips]) => Array.isArray(flips) && flips.length > 0);
+
+          let entries = Object.entries(data).filter(([symbol, flips]) =>
+            Array.isArray(flips) &&
+            flips.length > 0 &&
+            symbol.toLowerCase().includes(state.searchQuery.toLowerCase())
+          );
 
           if (state.activeFilter === "recent") {
             entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
@@ -191,10 +217,8 @@
 
           entries.forEach(([symbol, flips]) => {
             const latest = flips[0];
-
             const box = document.createElement("div");
             box.className = `flip ${latest.type}`;
-
             const emoji = latest.type === "green" ? "🐂" : "🐻";
             const colorClass = latest.type === "green" ? "green" : "red";
 
@@ -235,6 +259,7 @@
           });
         }
 
+        // Main filter tab
         document.querySelectorAll(".filters button").forEach(btn => {
           btn.addEventListener("click", () => {
             document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
@@ -245,6 +270,7 @@
           });
         });
 
+        // Sub filter (under Bullish/Bearish)
         document.querySelectorAll(".sub-filters button").forEach(btn => {
           btn.addEventListener("click", () => {
             document.querySelectorAll(".sub-filters button").forEach(b => b.classList.remove("active"));
@@ -252,6 +278,12 @@
             state.sortBy = btn.getAttribute("data-sort");
             renderFlips();
           });
+        });
+
+        // Search bar
+        document.getElementById("searchInput").addEventListener("input", (e) => {
+          state.searchQuery = e.target.value;
+          renderFlips();
         });
 
         renderFlips();
