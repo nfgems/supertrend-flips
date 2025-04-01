@@ -189,6 +189,7 @@
   <div class="tab-selector">
     <button data-tab="1d" class="active">Daily 📅</button>
     <button data-tab="1w">Weekly 🗓️</button>
+    <button data-tab="1m">Monthly 📆</button> <!-- ✅ NEW TAB -->
   </div>
 
   <div class="search-bar">
@@ -217,7 +218,8 @@
       searchQuery: "",
       data: {
         "1d": null,
-        "1w": null
+        "1w": null,
+        "1m": null  // ✅ ADDED FOR MONTHLY
       }
     };
 
@@ -229,10 +231,12 @@
 
       return Promise.all([
         safeFetch("public_flips_1d.json"),
-        safeFetch("public_flips_1w.json")
-      ]).then(([d1, d2]) => {
+        safeFetch("public_flips_1w.json"),
+        safeFetch("public_flips_1m.json") // ✅ NEW FILE
+      ]).then(([d1, d2, d3]) => {
         state.data["1d"] = d1;
         state.data["1w"] = d2;
+        state.data["1m"] = d3;
         renderFlips();
       });
     }
