@@ -150,10 +150,22 @@ def get_bars(symbol, retries=3, delay=3, timeframe=TimeFrame.Day):
 
 
 def get_crypto_ohlc(coin_id, days=365):
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days={days}&interval=daily"
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+    params = {
+        "vs_currency": "usd",
+        "days": days,
+        "interval": "daily"
+    }
+
     try:
-        response = requests.get(url)
+        response = requests.get(url, params=params)
+        response.raise_for_status()
         data = response.json()
+
+        if 'prices' not in data or not data['prices']:
+            logger.warning(f"{coin_id} - 'prices' key missing or empty in response.")
+            return None
+
         df = pd.DataFrame(data['prices'], columns=['timestamp', 'price'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         df.set_index('timestamp', inplace=True)
@@ -161,9 +173,11 @@ def get_crypto_ohlc(coin_id, days=365):
         df['high'] = df['close'] * 1.02
         df['low'] = df['close'] * 0.98
         return df[['high', 'low', 'close']]
+
     except Exception as e:
         logger.warning(f"{coin_id} - Failed to fetch CoinGecko data: {e}")
         return None
+
 
 
 def calculate_supertrend(df):
