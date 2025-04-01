@@ -1,6 +1,10 @@
-import yfinance as yf
 import json
 import time
+import os
+import requests
+
+API_KEY = os.getenv("FMP_API_KEY")
+FMP_BASE_URL = "https://financialmodelingprep.com/api/v3/profile"
 
 # Load tickers from your public_flips.json file
 with open("public_flips.json", "r") as f:
@@ -13,13 +17,14 @@ def fetch_company_name(ticker, base_delay=5, cooldown_threshold=10, cooldown_tim
     attempt = 1
     while True:
         try:
-            stock = yf.Ticker(ticker)
-            info = stock.info
-            name = info.get("shortName") or info.get("longName") or ""
-            if name:
-                return name
+            url = f"{FMP_BASE_URL}/{ticker}?apikey={API_KEY}"
+            response = requests.get(url)
+            response.raise_for_status()
+            result = response.json()
+            if result and isinstance(result, list) and "companyName" in result[0]:
+                return result[0]["companyName"]
             else:
-                raise ValueError("Name not found")
+                raise ValueError("Company name not found in API response")
         except Exception as e:
             print(f"[{ticker}] Attempt {attempt} failed: {e}")
             sleep_time = base_delay * (2 ** (attempt - 1))  # Exponential backoff
@@ -32,7 +37,7 @@ def fetch_company_name(ticker, base_delay=5, cooldown_threshold=10, cooldown_tim
 
             attempt += 1
 
-# Loop through all tickers and fetch names with robust retry logic
+# Loop through all tickers and fetch names with retry logic
 for i, ticker in enumerate(tickers):
     name = fetch_company_name(ticker)
     if name:
