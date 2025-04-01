@@ -55,6 +55,7 @@ SP500 = [
 TIMEFRAMES = {
     "1d": TimeFrame.Day,
     "1w": TimeFrame.Week
+    "1m": TimeFrame.Month
 }
 
 def load_flip_history(filename):
