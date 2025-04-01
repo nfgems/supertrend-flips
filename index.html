@@ -108,18 +108,6 @@
       font-size: 1.4rem;
     }
 
-    .logo {
-      width: 20px;
-      height: 20px;
-      border-radius: 3px;
-      margin-right: 5px;
-    }
-
-    .symbol-name {
-      display: flex;
-      flex-direction: column;
-    }
-
     .symbol {
       color: white;
       font-weight: bold;
@@ -128,7 +116,7 @@
 
     .company {
       font-size: 0.85rem;
-      color: #ccc;
+      color: #aaa;
     }
 
     .flipped {
@@ -237,7 +225,6 @@
         entries.forEach(([symbol, flips]) => {
           const latest = flips[0];
           const company = companyData[symbol]?.name || "";
-          const logo = companyData[symbol]?.logo || "";
           const emoji = latest.type === "green" ? "🐂" : "🐻";
           const colorClass = latest.type === "green" ? "green" : "red";
 
@@ -248,11 +235,8 @@
             <div class="flip-header">
               <div class="flip-left">
                 <span class="emoji">${emoji}</span>
-                ${logo ? `<img src="${logo}" alt="${symbol} logo" class="logo" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','💲')"/>` : '<span class="emoji">💲</span>'}
-                <div class="symbol-name">
-                  <span class="symbol">${symbol}</span>
-                  ${company ? `<span class="company">${company}</span>` : ""}
-                </div>
+                <span class="symbol">${symbol}</span>
+                ${company ? `<span class="company">(${company})</span>` : ""}
                 <span class="flipped">flipped</span>
                 <span class="${colorClass}">${latest.type.toUpperCase()}</span>
                 ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
