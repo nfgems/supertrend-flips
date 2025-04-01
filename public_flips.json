@@ -1,96 +1,242 @@
 {
-  "TSLA": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "JPM": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "MRK": {
-    "date": "2025-03-25",
-    "type": "red"
-  },
-  "PFE": {
-    "date": "2025-03-26",
-    "type": "red"
-  },
-  "NFLX": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "NEE": {
-    "date": "2025-03-25",
-    "type": "red"
-  },
-  "AMGN": {
-    "date": "2025-03-25",
-    "type": "red"
-  },
-  "SPGI": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "MDT": {
-    "date": "2025-03-25",
-    "type": "red"
-  },
-  "T": {
-    "date": "2025-03-27",
-    "type": "green"
-  },
-  "BLK": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "BKNG": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "TJX": {
-    "date": "2025-03-27",
-    "type": "green"
-  },
-  "ADSK": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "MCO": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "PRU": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "ORLY": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
-  "DLTR": {
-    "date": "2025-03-27",
-    "type": "green"
-  },
-  "CTVA": {
-    "date": "2025-03-26",
-    "type": "green"
-  },
-  "DPZ": {
-    "date": "2025-03-27",
-    "type": "green"
-  },
-  "BR": {
-    "date": "2025-03-26",
-    "type": "green"
-  },
-  "SWKS": {
-    "date": "2025-03-28",
-    "type": "red"
-  },
-  "HWM": {
-    "date": "2025-03-25",
-    "type": "green"
-  },
+  "TSLA": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-10",
+      "type": "red"
+    }
+  ],
+  "JPM": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-21",
+      "type": "red"
+    }
+  ],
+  "MRK": [
+    {
+      "date": "2025-03-25",
+      "type": "red"
+    },
+    {
+      "date": "2025-02-21",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-04",
+      "type": "red"
+    }
+  ],
+  "PFE": [
+    {
+      "date": "2025-03-26",
+      "type": "red"
+    }
+  ],
+  "NFLX": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-25",
+      "type": "red"
+    }
+  ],
+  "NEE": [
+    {
+      "date": "2025-03-25",
+      "type": "red"
+    }
+  ],
+  "AMGN": [
+    {
+      "date": "2025-03-25",
+      "type": "red"
+    }
+  ],
+  "SPGI": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-03-06",
+      "type": "red"
+    }
+  ],
+  "MDT": [
+    {
+      "date": "2025-03-25",
+      "type": "red"
+    },
+    {
+      "date": "2025-03-03",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-18",
+      "type": "red"
+    }
+  ],
+  "T": [
+    {
+      "date": "2025-03-27",
+      "type": "green"
+    },
+    {
+      "date": "2025-03-11",
+      "type": "red"
+    }
+  ],
+  "BLK": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-03",
+      "type": "red"
+    }
+  ],
+  "BKNG": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-03-06",
+      "type": "red"
+    },
+    {
+      "date": "2025-02-12",
+      "type": "green"
+    },
+    {
+      "date": "2025-01-21",
+      "type": "red"
+    }
+  ],
+  "TJX": [
+    {
+      "date": "2025-03-27",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-21",
+      "type": "red"
+    }
+  ],
+  "ADSK": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-20",
+      "type": "red"
+    }
+  ],
+  "MCO": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-27",
+      "type": "red"
+    }
+  ],
+  "PRU": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-05",
+      "type": "red"
+    }
+  ],
+  "ORLY": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-03-12",
+      "type": "red"
+    }
+  ],
+  "DLTR": [
+    {
+      "date": "2025-03-27",
+      "type": "green"
+    },
+    {
+      "date": "2025-03-04",
+      "type": "red"
+    }
+  ],
+  "CTVA": [
+    {
+      "date": "2025-03-26",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-10",
+      "type": "red"
+    }
+  ],
+  "DPZ": [
+    {
+      "date": "2025-03-27",
+      "type": "green"
+    },
+    {
+      "date": "2025-03-10",
+      "type": "red"
+    }
+  ],
+  "BR": [
+    {
+      "date": "2025-03-26",
+      "type": "green"
+    },
+    {
+      "date": "2025-03-10",
+      "type": "red"
+    }
+  ],
+  "SWKS": [
+    {
+      "date": "2025-03-28",
+      "type": "red"
+    },
+    {
+      "date": "2025-03-07",
+      "type": "green"
+    },
+    {
+      "date": "2025-02-03",
+      "type": "red"
+    }
+  ],
+  "HWM": [
+    {
+      "date": "2025-03-25",
+      "type": "green"
+    },
+    {
+      "date": "2025-03-04",
+      "type": "red"
+    }
+  ],
   "AAPL": [
     {
       "date": "2025-03-10",
@@ -1397,6 +1543,10 @@
   ],
   "CARR": [
     {
+      "date": "2025-04-01",
+      "type": "red"
+    },
+    {
       "date": "2025-03-07",
       "type": "green"
     },
@@ -2384,6 +2534,10 @@
     }
   ],
   "EXEL": [
+    {
+      "date": "2025-04-01",
+      "type": "red"
+    },
     {
       "date": "2025-02-21",
       "type": "green"
