@@ -56,6 +56,19 @@
       border-radius: 8px;
       box-shadow: 0 0 10px #00ff0040;
       position: relative;
+      flex-direction: column;
+    }
+
+    .flip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .flip-left {
+      display: flex;
+      align-items: center;
     }
 
     .emoji {
@@ -67,7 +80,6 @@
       color: white;
       font-weight: bold;
       font-size: 1.1rem;
-      cursor: pointer;
     }
 
     .flipped {
@@ -86,38 +98,34 @@
       font-weight: bold;
     }
 
-    .date {
-      color: #ffd700;
-      font-size: 0.95rem;
-    }
-
-    .history {
+    .history-toggle {
       margin-left: 0.6rem;
       font-size: 1rem;
       cursor: pointer;
       color: #888;
     }
 
-    .history:hover {
+    .history-toggle:hover {
       text-decoration: underline;
     }
 
     .history-container {
       display: none;
-      margin-top: 0.5rem;
+      margin-top: 0.8rem;
+      width: 100%;
     }
 
     .history-entry {
-      padding-left: 2rem;
-      font-size: 0.95rem;
       display: flex;
       justify-content: space-between;
+      padding: 0.4rem 1rem;
+      background-color: #1a1a1a;
+      margin-top: 0.3rem;
+      border-radius: 6px;
     }
 
     @media (max-width: 600px) {
       .flip {
-        flex-direction: column;
-        align-items: flex-start;
         gap: 0.5rem;
       }
     }
@@ -148,13 +156,8 @@
           container.innerHTML = "";
           let entries = Object.entries(data);
 
-          // Sort logic
           if (state.activeFilter === "recent") {
-            entries.sort((a, b) => {
-              const dateA = new Date(a[1][0].date);
-              const dateB = new Date(b[1][0].date);
-              return dateB - dateA;
-            });
+            entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
           } else {
             entries.sort((a, b) => a[0].localeCompare(b[0]));
           }
@@ -172,18 +175,20 @@
             const colorClass = latest.type === "green" ? "green" : "red";
 
             box.innerHTML = `
-              <div>
-                <span class="emoji">${emoji}</span>
-                <span class="symbol">${symbol}</span>
-                <span class="flipped">flipped</span>
-                <span class="${colorClass}">${latest.type.toUpperCase()}</span>
-                <span class="history">📂</span>
+              <div class="flip-header">
+                <div class="flip-left">
+                  <span class="emoji">${emoji}</span>
+                  <span class="symbol">${symbol}</span>
+                  <span class="flipped">flipped</span>
+                  <span class="${colorClass}">${latest.type.toUpperCase()}</span>
+                  <span class="history-toggle" title="View history">📂</span>
+                </div>
+                <div class="date ${colorClass}">${latest.date}</div>
               </div>
-              <div class="date">${latest.date}</div>
               <div class="history-container"></div>
             `;
 
-            const toggle = box.querySelector(".history");
+            const toggle = box.querySelector(".history-toggle");
             const historyBox = box.querySelector(".history-container");
 
             toggle.addEventListener("click", () => {
