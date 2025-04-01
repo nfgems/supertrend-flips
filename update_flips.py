@@ -66,6 +66,7 @@ SP500 = [
     "APA", "MTDR", "PARR", "TALO", "SM", "VTLE", "CPE", "CIVI", "PDCE"
 ]
 
+
 def load_flip_history():
     if os.path.exists("public_flips.json"):
         with open("public_flips.json", "r") as f:
@@ -90,12 +91,13 @@ def get_bars(symbol, retries=3, delay=3):
         try:
             bars = client.get_stock_bars(request).df
             if bars.empty or symbol not in bars.index.levels[0]:
+                logger.warning(f"{symbol} - No data returned from Alpaca.")
                 return None
             return bars.xs(symbol, level=0)
         except Exception as e:
-            logger.warning(f"Retry {attempt + 1}/{retries} for {symbol}: {e}")
+            logger.warning(f"{symbol} - Retry {attempt + 1}/{retries}: {e}")
             time.sleep(delay)
-    logger.error(f"Failed to fetch bars for {symbol} after {retries} retries.")
+    logger.error(f"{symbol} - Failed after {retries} retries.")
     return None
 
 def calculate_supertrend(df):
@@ -121,9 +123,12 @@ def detect_flips(df, symbol, existing):
             new_flips.append({"date": date_str, "type": "red"})
 
     if new_flips:
+        logger.info(f"{symbol} - {len(new_flips)} new flip(s) detected.")
         flips.extend(new_flips)
         flips.sort(key=lambda x: x["date"], reverse=True)
         existing[symbol] = flips
+    else:
+        logger.info(f"{symbol} - No new flips.")
 
 def scan():
     flip_data = load_flip_history()
@@ -132,13 +137,15 @@ def scan():
         try:
             df = get_bars(symbol)
             if df is None or len(df) < 6:
+                logger.info(f"{symbol} - Skipped: insufficient data.")
                 continue
             df = calculate_supertrend(df)
             detect_flips(df, symbol, flip_data)
         except Exception as e:
-            logger.error(f"{symbol} error: {e}")
+            logger.error(f"{symbol} - Exception during processing: {e}")
 
     save_flip_history(flip_data)
+    logger.info("✅ Flip detection complete. public_flips.json updated.")
 
 if __name__ == "__main__":
     scan()
