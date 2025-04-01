@@ -66,12 +66,29 @@ SP500 = [
     "APA", "MTDR", "PARR", "TALO", "SM", "VTLE", "CPE", "CIVI", "PDCE"
 ]
 
-
 def load_flip_history():
-    if os.path.exists("public_flips.json"):
-        with open("public_flips.json", "r") as f:
-            return json.load(f)
-    return {}
+    if not os.path.exists("public_flips.json"):
+        return {}
+
+    with open("public_flips.json", "r") as f:
+        raw_data = json.load(f)
+
+    cleaned = {}
+    for symbol, flips in raw_data.items():
+        if isinstance(flips, list) and all(
+            isinstance(entry, dict) and "date" in entry and "type" in entry
+            for entry in flips
+        ):
+            cleaned[symbol] = flips
+        else:
+            logger.warning(f"{symbol} had malformed flip data. Resetting.")
+            cleaned[symbol] = []
+
+    # Save cleaned version back to file
+    with open("public_flips.json", "w") as f:
+        json.dump(cleaned, f, indent=2)
+
+    return cleaned
 
 def save_flip_history(data):
     with open("public_flips.json", "w") as f:
@@ -119,11 +136,7 @@ def detect_flips(df, symbol, existing):
         logger.warning(f"{symbol} missing Supertrend column. Skipping.")
         return
 
-    flips = existing.get(symbol)
-    if not isinstance(flips, list):
-        logger.warning(f"{symbol} has malformed flip data. Resetting.")
-        flips = []
-
+    flips = existing.get(symbol, [])
     recorded_dates = {entry["date"] for entry in flips}
     new_flips = []
 
@@ -140,10 +153,10 @@ def detect_flips(df, symbol, existing):
         elif prev['SUPERT_10_3.0'] < prev['close'] and curr['SUPERT_10_3.0'] > curr['close']:
             new_flips.append({"date": date_str, "type": "red"})
 
-    if new_flips:
-        flips.extend(new_flips)
-        flips.sort(key=lambda x: x["date"], reverse=True)
-        existing[symbol] = flips
+    # Always update, even if no new flips
+    all_flips = flips + new_flips
+    all_flips.sort(key=lambda x: x["date"], reverse=True)
+    existing[symbol] = all_flips
 
 def scan():
     flip_data = load_flip_history()
