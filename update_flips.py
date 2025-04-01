@@ -40,8 +40,22 @@ SP500 = [
     "STT", "ESS", "CAG", "WAT", "JKHY", "IPG", "TECH", "PKI", "MOS", "GEN",
     "NRG", "HOLX", "MKTX", "ZION", "FMC", "NDSN", "BIO", "VTRS", "TER",
     "WRB", "BEN", "GRMN", "BBY", "DHI", "TXT", "PFG", "TPR", "HSIC",
-    "LNT", "CPB", "ROL", "NI", "K", "IRM", "PNW", "AIZ", "HWM", "WHR"
+    "LNT", "CPB", "ROL", "NI", "K", "IRM", "PNW", "AIZ", "HWM", "WHR",
+
+    # Not in SP500 additions
+    "MSTR", "COIN", "GRND", "HOOD", "BRPHF", "PLTR", "NIO", "LCID", "SOFI", "ROKU",
+    "AFRM", "CHWY", "RIVN", "FUBO", "OPEN", "UPST", "DKNG", "RBLX", "ENVX", "SOUN",
+    "BMBL", "GENI", "NU", "GTLB", "PATH", "DNA", "SIRI", "AI", "HIMS", "XPEV",
+    "LI", "JOBY", "EVGO", "QS", "QSAM", "ASTR", "RKLB", "VFS", "LC", "UPWK",
+    "TTOO", "TMDX", "ONON", "LZ", "SDGR", "SMCI", "HUBC", "WBD", "PRCH", "ARLO",
+    "LMND", "TRUP", "ACGL", "RNR", "MKL", "THG", "AGO", "ORI",
+    "GD", "CW", "KTOS", "AVAV", "BWXT", "AXON", "HXL",
+    "SGEN", "NBIX", "ALNY", "BMRN", "INCY", "ACAD", "EXEL",
+    "ALLY", "FHN", "CMA", "HBNC", "PB", "SIVBQ", "WAL", "CUBI",
+    "APA", "MTDR", "PARR", "TALO", "SM", "VTLE", "CPE", "CIVI", "PDCE"
 ]
+
+
 
 def load_flip_history():
     if os.path.exists("public_flips.json"):
