@@ -1,5 +1,6 @@
 import pandas as pd
 import pandas_ta as ta
+import requests
 from alpaca.data.historical.stock import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
@@ -52,11 +53,46 @@ SP500 = [
     "ZBH", "ZBRA", "ZTS"
 ]
 
+
 TIMEFRAMES = {
     "1d": TimeFrame.Day,
     "1w": TimeFrame.Week,
     "1m": TimeFrame.Month
 }
+
+CRYPTO = {
+    "bitcoin": "BTC",
+    "ethereum": "ETH",
+    "binancecoin": "BNB",
+    "solana": "SOL",
+    "ripple": "XRP",
+    "chainlink": "LINK",
+    "dogecoin": "DOGE",
+    "cardano": "ADA",
+    "tron": "TRX",
+    "avalanche-2": "AVAX",
+    "sui": "SUI",
+    "litecoin": "LTC",
+    "bitcoin-cash": "BCH",
+    "hype": "HYPE",
+    "aptos": "APT",
+    "pepe": "PEPE",
+    "bittensor": "TAO",
+    "ethena": "ENA",
+    "trump": "TRUMP",
+    "aave": "AAVE",
+    "bonk": "BONK",
+    "dogwifhat": "WIF",
+    "mog-coin": "MOG",
+    "giga": "GIGA",
+    "spx6900": "SPX6900",
+    "fartcoin": "FART",
+    "pengu": "PENGU",
+    "popcat": "POPCAT",
+    "melania": "MELANIA",
+    "sonic": "SONIC"
+}
+
 
 def load_flip_history(filename):
     if not os.path.exists(filename):
@@ -67,10 +103,7 @@ def load_flip_history(filename):
 
     cleaned = {}
     for symbol, flips in raw_data.items():
-        if isinstance(flips, list) and all(
-            isinstance(entry, dict) and "date" in entry and "type" in entry
-            for entry in flips
-        ):
+        if isinstance(flips, list) and all(isinstance(entry, dict) and "date" in entry and "type" in entry for entry in flips):
             cleaned[symbol] = flips
         else:
             logger.warning(f"{symbol} had malformed flip data. Resetting.")
@@ -81,9 +114,11 @@ def load_flip_history(filename):
 
     return cleaned
 
+
 def save_flip_history(data, filename):
     with open(filename, "w") as f:
         json.dump(data, f, indent=2)
+
 
 def get_bars(symbol, retries=3, delay=3, timeframe=TimeFrame.Day):
     end = datetime.utcnow()
@@ -98,29 +133,43 @@ def get_bars(symbol, retries=3, delay=3, timeframe=TimeFrame.Day):
     for attempt in range(retries):
         try:
             bars = client.get_stock_bars(request).df
-
             if bars.empty:
                 logger.warning(f"{symbol} - No data returned from Alpaca.")
                 return None
-
             if isinstance(bars.index, pd.MultiIndex):
                 if symbol not in bars.index.levels[0]:
                     logger.warning(f"{symbol} - Not found in multi-indexed response.")
                     return None
                 bars = bars.xs(symbol, level=0)
-
             return bars
-
         except Exception as e:
             logger.warning(f"{symbol} - Retry {attempt + 1}/{retries}: {e}")
             time.sleep(delay)
-
     logger.error(f"{symbol} - Failed after {retries} retries.")
     return None
+
+
+def get_crypto_ohlc(coin_id, days=365):
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days={days}&interval=daily"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        df = pd.DataFrame(data['prices'], columns=['timestamp', 'price'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('timestamp', inplace=True)
+        df['close'] = df['price']
+        df['high'] = df['close'] * 1.02
+        df['low'] = df['close'] * 0.98
+        return df[['high', 'low', 'close']]
+    except Exception as e:
+        logger.warning(f"{coin_id} - Failed to fetch CoinGecko data: {e}")
+        return None
+
 
 def calculate_supertrend(df):
     st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3.0)
     return df.join(st)
+
 
 def detect_flips(df, symbol, existing):
     if 'SUPERT_10_3.0' not in df.columns:
@@ -148,26 +197,39 @@ def detect_flips(df, symbol, existing):
     all_flips.sort(key=lambda x: x["date"], reverse=True)
     existing[symbol] = all_flips
 
+
 def run_for_timeframe(label, timeframe):
     filename = f"public_flips_{label}.json"
     flip_data = load_flip_history(filename)
-
     for symbol in SP500:
         try:
             df = get_bars(symbol, timeframe=timeframe)
             if df is None or len(df) < 6:
                 logger.warning(f"{symbol} - No data returned or insufficient candles.")
                 continue
-
             df = calculate_supertrend(df)
             detect_flips(df, symbol, flip_data)
-
         except Exception as e:
             logger.error(f"{symbol} - Unexpected error: {e}")
-
     save_flip_history(flip_data, filename)
     logger.info(f"✅ {label.upper()} flip detection complete. {filename} updated.")
+
+
+def run_crypto():
+    filename = "public_flips_crypto.json"
+    flip_data = load_flip_history(filename)
+    for coin_id, symbol in CRYPTO.items():
+        df = get_crypto_ohlc(coin_id)
+        if df is None or len(df) < 6:
+            logger.warning(f"{symbol} - Not enough data for flip detection.")
+            continue
+        df = calculate_supertrend(df)
+        detect_flips(df, symbol, flip_data)
+    save_flip_history(flip_data, filename)
+    logger.info(f"✅ CRYPTO flip detection complete. {filename} updated.")
+
 
 if __name__ == "__main__":
     for label, tf in TIMEFRAMES.items():
         run_for_timeframe(label, tf)
+    run_crypto()
