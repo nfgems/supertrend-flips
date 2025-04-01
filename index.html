@@ -197,20 +197,21 @@
         function renderFlips() {
           container.innerHTML = "";
 
-          let entries = Object.entries(data).filter(([symbol, flips]) =>
-            Array.isArray(flips) &&
-            flips.length > 0 &&
-            symbol.toLowerCase().includes(state.searchQuery.toLowerCase())
-          );
+          let entries = Object.entries(data).filter(([symbol, flips]) => {
+            if (!Array.isArray(flips) || flips.length === 0) return false;
+            if (!symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
+
+            if (state.activeFilter === "green" || state.activeFilter === "red") {
+              return flips[0].type === state.activeFilter;
+            }
+
+            return true;
+          });
 
           if (state.activeFilter === "recent") {
             entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
           } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
-            entries = entries.filter(([_, flips]) => flips[0].type === state.activeFilter);
             entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
-          } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "alpha") {
-            entries = entries.filter(([_, flips]) => flips[0].type === state.activeFilter);
-            entries.sort((a, b) => a[0].localeCompare(b[0]));
           } else {
             entries.sort((a, b) => a[0].localeCompare(b[0]));
           }
@@ -240,7 +241,7 @@
               const toggle = box.querySelector(".history-toggle");
               const historyBox = box.querySelector(".history-container");
 
-              toggle.addEventListener("click", () => {
+              toggle?.addEventListener("click", () => {
                 if (historyBox.style.display === "block") {
                   historyBox.style.display = "none";
                 } else {
@@ -259,7 +260,6 @@
           });
         }
 
-        // Main filter tab
         document.querySelectorAll(".filters button").forEach(btn => {
           btn.addEventListener("click", () => {
             document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
@@ -270,7 +270,6 @@
           });
         });
 
-        // Sub filter (under Bullish/Bearish)
         document.querySelectorAll(".sub-filters button").forEach(btn => {
           btn.addEventListener("click", () => {
             document.querySelectorAll(".sub-filters button").forEach(b => b.classList.remove("active"));
@@ -280,7 +279,6 @@
           });
         });
 
-        // Search bar
         document.getElementById("searchInput").addEventListener("input", (e) => {
           state.searchQuery = e.target.value;
           renderFlips();
