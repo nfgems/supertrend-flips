@@ -169,6 +169,13 @@
       border-radius: 6px;
     }
 
+    .no-data {
+      text-align: center;
+      color: #999;
+      font-style: italic;
+      padding: 2rem 1rem;
+    }
+
     @media (max-width: 600px) {
       .flip {
         gap: 0.5rem;
@@ -215,9 +222,14 @@
     };
 
     function fetchAllData() {
+      const safeFetch = (url) =>
+        fetch(url)
+          .then(res => res.ok ? res.json() : {})
+          .catch(() => ({}));
+
       return Promise.all([
-        fetch("public_flips_1d.json").then(res => res.json()),
-        fetch("public_flips_1w.json").then(res => res.json())
+        safeFetch("public_flips_1d.json"),
+        safeFetch("public_flips_1w.json")
       ]).then(([d1, d2]) => {
         state.data["1d"] = d1;
         state.data["1w"] = d2;
@@ -230,6 +242,11 @@
       const container = document.getElementById("flipContainer");
       const subFilters = document.getElementById("subFilters");
       container.innerHTML = "";
+
+      if (!data || Object.keys(data).length === 0) {
+        container.innerHTML = `<div class="no-data">No data available for this view yet.</div>`;
+        return;
+      }
 
       let entries = Object.entries(data).filter(([symbol, flips]) => {
         if (!Array.isArray(flips) || flips.length === 0) return false;
@@ -248,6 +265,11 @@
         entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
       } else {
         entries.sort((a, b) => a[0].localeCompare(b[0]));
+      }
+
+      if (entries.length === 0) {
+        container.innerHTML = `<div class="no-data">No matches for selected filters.</div>`;
+        return;
       }
 
       entries.forEach(([symbol, flips]) => {
