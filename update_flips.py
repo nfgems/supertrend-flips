@@ -52,11 +52,16 @@ SP500 = [
     "ZBH", "ZBRA", "ZTS"
 ]
 
-def load_flip_history():
-    if not os.path.exists("public_flips.json"):
+TIMEFRAMES = {
+    "1d": TimeFrame.Day,
+    "1w": TimeFrame.Week
+}
+
+def load_flip_history(filename):
+    if not os.path.exists(filename):
         return {}
 
-    with open("public_flips.json", "r") as f:
+    with open(filename, "r") as f:
         raw_data = json.load(f)
 
     cleaned = {}
@@ -70,22 +75,21 @@ def load_flip_history():
             logger.warning(f"{symbol} had malformed flip data. Resetting.")
             cleaned[symbol] = []
 
-    # Save cleaned version back to file
-    with open("public_flips.json", "w") as f:
+    with open(filename, "w") as f:
         json.dump(cleaned, f, indent=2)
 
     return cleaned
 
-def save_flip_history(data):
-    with open("public_flips.json", "w") as f:
+def save_flip_history(data, filename):
+    with open(filename, "w") as f:
         json.dump(data, f, indent=2)
 
-def get_bars(symbol, retries=3, delay=3):
+def get_bars(symbol, retries=3, delay=3, timeframe=TimeFrame.Day):
     end = datetime.utcnow()
-    start = end - timedelta(days=100)
+    start = end - timedelta(days=1000)
     request = StockBarsRequest(
         symbol_or_symbols=symbol,
-        timeframe=TimeFrame.Day,
+        timeframe=timeframe,
         start=start,
         end=end,
         feed='iex'
@@ -139,17 +143,17 @@ def detect_flips(df, symbol, existing):
         elif prev['SUPERT_10_3.0'] < prev['close'] and curr['SUPERT_10_3.0'] > curr['close']:
             new_flips.append({"date": date_str, "type": "red"})
 
-    # Always update, even if no new flips
     all_flips = flips + new_flips
     all_flips.sort(key=lambda x: x["date"], reverse=True)
     existing[symbol] = all_flips
 
-def scan():
-    flip_data = load_flip_history()
+def run_for_timeframe(label, timeframe):
+    filename = f"public_flips_{label}.json"
+    flip_data = load_flip_history(filename)
 
     for symbol in SP500:
         try:
-            df = get_bars(symbol)
+            df = get_bars(symbol, timeframe=timeframe)
             if df is None or len(df) < 6:
                 logger.warning(f"{symbol} - No data returned or insufficient candles.")
                 continue
@@ -160,8 +164,9 @@ def scan():
         except Exception as e:
             logger.error(f"{symbol} - Unexpected error: {e}")
 
-    save_flip_history(flip_data)
-    logger.info("✅ Flip detection complete. public_flips.json updated.")
+    save_flip_history(flip_data, filename)
+    logger.info(f"✅ {label.upper()} flip detection complete. {filename} updated.")
 
 if __name__ == "__main__":
-    scan()
+    for label, tf in TIMEFRAMES.items():
+        run_for_timeframe(label, tf)
