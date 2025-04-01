@@ -22,6 +22,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run company info script
+        env:
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
         run: python generate_company_info.py
 
       - name: Commit updated company_info.json
