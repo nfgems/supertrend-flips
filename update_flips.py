@@ -6,6 +6,19 @@ from alpaca.data.timeframe import TimeFrame
 from datetime import datetime, timedelta
 import os
 import json
+import time
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("flips.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger()
 
 api_key = os.getenv("ALPACA_API_KEY")
 secret_key = os.getenv("ALPACA_SECRET_KEY")
@@ -41,8 +54,6 @@ SP500 = [
     "NRG", "HOLX", "MKTX", "ZION", "FMC", "NDSN", "BIO", "VTRS", "TER",
     "WRB", "BEN", "GRMN", "BBY", "DHI", "TXT", "PFG", "TPR", "HSIC",
     "LNT", "CPB", "ROL", "NI", "K", "IRM", "PNW", "AIZ", "HWM", "WHR",
-
-    # Not in SP500 additions
     "MSTR", "COIN", "GRND", "HOOD", "BRPHF", "PLTR", "NIO", "LCID", "SOFI", "ROKU",
     "AFRM", "CHWY", "RIVN", "FUBO", "OPEN", "UPST", "DKNG", "RBLX", "ENVX", "SOUN",
     "BMBL", "GENI", "NU", "GTLB", "PATH", "DNA", "SIRI", "AI", "HIMS", "XPEV",
@@ -55,8 +66,6 @@ SP500 = [
     "APA", "MTDR", "PARR", "TALO", "SM", "VTLE", "CPE", "CIVI", "PDCE"
 ]
 
-
-
 def load_flip_history():
     if os.path.exists("public_flips.json"):
         with open("public_flips.json", "r") as f:
@@ -67,7 +76,7 @@ def save_flip_history(data):
     with open("public_flips.json", "w") as f:
         json.dump(data, f, indent=2)
 
-def get_bars(symbol):
+def get_bars(symbol, retries=3, delay=3):
     end = datetime.utcnow()
     start = end - timedelta(days=100)
     request = StockBarsRequest(
@@ -77,10 +86,17 @@ def get_bars(symbol):
         end=end,
         feed='iex'
     )
-    bars = client.get_stock_bars(request).df
-    if bars.empty or symbol not in bars.index.levels[0]:
-        return None
-    return bars.xs(symbol, level=0)
+    for attempt in range(retries):
+        try:
+            bars = client.get_stock_bars(request).df
+            if bars.empty or symbol not in bars.index.levels[0]:
+                return None
+            return bars.xs(symbol, level=0)
+        except Exception as e:
+            logger.warning(f"Retry {attempt + 1}/{retries} for {symbol}: {e}")
+            time.sleep(delay)
+    logger.error(f"Failed to fetch bars for {symbol} after {retries} retries.")
+    return None
 
 def calculate_supertrend(df):
     st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3.0)
@@ -120,10 +136,9 @@ def scan():
             df = calculate_supertrend(df)
             detect_flips(df, symbol, flip_data)
         except Exception as e:
-            print(f"{symbol} error: {e}")
+            logger.error(f"{symbol} error: {e}")
 
     save_flip_history(flip_data)
 
 if __name__ == "__main__":
     scan()
-
