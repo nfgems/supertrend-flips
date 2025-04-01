@@ -105,6 +105,10 @@ def calculate_supertrend(df):
     return df.join(st)
 
 def detect_flips(df, symbol, existing):
+    if 'SUPERT_10_3.0' not in df.columns:
+        logger.warning(f"{symbol} missing Supertrend column. Skipping.")
+        return
+
     flips = existing.get(symbol, [])
     recorded_dates = {entry["date"] for entry in flips}
     new_flips = []
@@ -123,12 +127,9 @@ def detect_flips(df, symbol, existing):
             new_flips.append({"date": date_str, "type": "red"})
 
     if new_flips:
-        logger.info(f"{symbol} - {len(new_flips)} new flip(s) detected.")
         flips.extend(new_flips)
         flips.sort(key=lambda x: x["date"], reverse=True)
         existing[symbol] = flips
-    else:
-        logger.info(f"{symbol} - No new flips.")
 
 def scan():
     flip_data = load_flip_history()
@@ -137,13 +138,16 @@ def scan():
         try:
             df = get_bars(symbol)
             if df is None or len(df) < 6:
-                logger.info(f"{symbol} - Skipped: insufficient data.")
+                logger.warning(f"{symbol} - No data returned or insufficient candles.")
                 continue
+
             df = calculate_supertrend(df)
             detect_flips(df, symbol, flip_data)
-        except Exception as e:
-            logger.error(f"{symbol} - Exception during processing: {e}")
 
+        except Exception as e:
+            logger.error(f"{symbol} - Unexpected error: {e}")
+
+    save_flip_history(flip_data)
     save_flip_history(flip_data)
     logger.info("✅ Flip detection complete. public_flips.json updated.")
 
