@@ -40,6 +40,28 @@
       color: black;
     }
 
+    .sub-filters {
+      text-align: center;
+      margin-top: -0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .sub-filters button {
+      background-color: #222;
+      color: #ccc;
+      border: 1px solid #444;
+      padding: 0.3rem 0.7rem;
+      margin: 0 0.3rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .sub-filters button.active {
+      background-color: #00ff00;
+      color: black;
+    }
+
     .symbol-section {
       max-width: 700px;
       margin: 0 auto 2rem;
@@ -141,6 +163,11 @@
     <button data-filter="recent">Most Recent</button>
   </div>
 
+  <div class="sub-filters" id="subFilters" style="display:none">
+    <button data-sort="alpha" class="active">A–Z</button>
+    <button data-sort="recent">Most Recent</button>
+  </div>
+
   <div id="flipContainer" class="symbol-section"></div>
 
   <script>
@@ -148,8 +175,10 @@
       .then(res => res.json())
       .then(data => {
         const container = document.getElementById("flipContainer");
+        const subFilters = document.getElementById("subFilters");
         const state = {
-          activeFilter: "all"
+          activeFilter: "all",
+          sortBy: "alpha"
         };
 
         function renderFlips() {
@@ -157,16 +186,21 @@
           let entries = Object.entries(data);
 
           if (state.activeFilter === "recent") {
+            entries = entries.filter(e => Array.isArray(e[1]) && e[1].length > 0);
             entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
           } else {
-            entries.sort((a, b) => a[0].localeCompare(b[0]));
+            if (state.sortBy === "recent") {
+              entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+            } else {
+              entries.sort((a, b) => a[0].localeCompare(b[0]));
+            }
           }
 
           entries.forEach(([symbol, flips]) => {
             if (!Array.isArray(flips) || flips.length === 0) return;
             const latest = flips[0];
 
-            if (state.activeFilter !== "all" && state.activeFilter !== latest.type && state.activeFilter !== "recent") return;
+            if (state.activeFilter !== "all" && state.activeFilter !== "recent" && state.activeFilter !== latest.type) return;
 
             const box = document.createElement("div");
             box.className = `flip ${latest.type}`;
@@ -181,29 +215,31 @@
                   <span class="symbol">${symbol}</span>
                   <span class="flipped">flipped</span>
                   <span class="${colorClass}">${latest.type.toUpperCase()}</span>
-                  <span class="history-toggle" title="View history">📂</span>
+                  ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
                 </div>
                 <div class="date ${colorClass}">${latest.date}</div>
               </div>
               <div class="history-container"></div>
             `;
 
-            const toggle = box.querySelector(".history-toggle");
-            const historyBox = box.querySelector(".history-container");
+            if (state.activeFilter === "all") {
+              const toggle = box.querySelector(".history-toggle");
+              const historyBox = box.querySelector(".history-container");
 
-            toggle.addEventListener("click", () => {
-              if (historyBox.style.display === "block") {
-                historyBox.style.display = "none";
-              } else {
-                historyBox.innerHTML = flips.map(f => `
-                  <div class="history-entry">
-                    <span>${f.date}</span>
-                    <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
-                  </div>
-                `).join("");
-                historyBox.style.display = "block";
-              }
-            });
+              toggle.addEventListener("click", () => {
+                if (historyBox.style.display === "block") {
+                  historyBox.style.display = "none";
+                } else {
+                  historyBox.innerHTML = flips.map(f => `
+                    <div class="history-entry">
+                      <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
+                      <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
+                    </div>
+                  `).join("");
+                  historyBox.style.display = "block";
+                }
+              });
+            }
 
             container.appendChild(box);
           });
@@ -214,6 +250,16 @@
             document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
             state.activeFilter = btn.getAttribute("data-filter");
+            subFilters.style.display = (state.activeFilter === "green" || state.activeFilter === "red") ? "block" : "none";
+            renderFlips();
+          });
+        });
+
+        document.querySelectorAll(".sub-filters button").forEach(btn => {
+          btn.addEventListener("click", () => {
+            document.querySelectorAll(".sub-filters button").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            state.sortBy = btn.getAttribute("data-sort");
             renderFlips();
           });
         });
