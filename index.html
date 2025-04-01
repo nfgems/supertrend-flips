@@ -108,10 +108,27 @@
       font-size: 1.4rem;
     }
 
+    .logo {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      margin-right: 5px;
+    }
+
+    .symbol-name {
+      display: flex;
+      flex-direction: column;
+    }
+
     .symbol {
       color: white;
       font-weight: bold;
       font-size: 1.1rem;
+    }
+
+    .company {
+      font-size: 0.85rem;
+      color: #ccc;
     }
 
     .flipped {
@@ -183,111 +200,117 @@
   <div id="flipContainer" class="symbol-section"></div>
 
   <script>
-    fetch("public_flips.json")
-      .then(res => res.json())
-      .then(data => {
-        const container = document.getElementById("flipContainer");
-        const subFilters = document.getElementById("subFilters");
-        const state = {
-          activeFilter: "all",
-          sortBy: "alpha",
-          searchQuery: ""
-        };
+    Promise.all([
+      fetch("public_flips.json").then(res => res.json()),
+      fetch("company_info.json").then(res => res.json()).catch(() => ({}))
+    ]).then(([data, companyData]) => {
+      const container = document.getElementById("flipContainer");
+      const subFilters = document.getElementById("subFilters");
+      const state = {
+        activeFilter: "all",
+        sortBy: "alpha",
+        searchQuery: ""
+      };
 
-        function renderFlips() {
-          container.innerHTML = "";
+      function renderFlips() {
+        container.innerHTML = "";
 
-          let entries = Object.entries(data).filter(([symbol, flips]) => {
-            if (!Array.isArray(flips) || flips.length === 0) return false;
-            if (!symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
+        let entries = Object.entries(data).filter(([symbol, flips]) => {
+          if (!Array.isArray(flips) || flips.length === 0) return false;
+          if (!symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
 
-            if (state.activeFilter === "green" || state.activeFilter === "red") {
-              return flips[0].type === state.activeFilter;
-            }
-
-            return true;
-          });
-
-          if (state.activeFilter === "recent") {
-            entries = entries.filter(([_, flips]) => flips.length > 0);
-            entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
-          } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
-            entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
-          } else {
-            entries.sort((a, b) => a[0].localeCompare(b[0]));
+          if (state.activeFilter === "green" || state.activeFilter === "red") {
+            return flips[0].type === state.activeFilter;
           }
 
-          entries.forEach(([symbol, flips]) => {
-            const latest = flips[0];
-            const box = document.createElement("div");
-            box.className = `flip ${latest.type}`;
-            const emoji = latest.type === "green" ? "🐂" : "🐻";
-            const colorClass = latest.type === "green" ? "green" : "red";
+          return true;
+        });
 
-            box.innerHTML = `
-              <div class="flip-header">
-                <div class="flip-left">
-                  <span class="emoji">${emoji}</span>
-                  <span class="symbol">${symbol}</span>
-                  <span class="flipped">flipped</span>
-                  <span class="${colorClass}">${latest.type.toUpperCase()}</span>
-                  ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
-                </div>
-                <div class="date ${colorClass}">${latest.date}</div>
-              </div>
-              <div class="history-container"></div>
-            `;
-
-            if (state.activeFilter === "all") {
-              const toggle = box.querySelector(".history-toggle");
-              const historyBox = box.querySelector(".history-container");
-
-              toggle?.addEventListener("click", () => {
-                if (historyBox.style.display === "block") {
-                  historyBox.style.display = "none";
-                } else {
-                  historyBox.innerHTML = flips.map(f => `
-                    <div class="history-entry">
-                      <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
-                      <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
-                    </div>
-                  `).join("");
-                  historyBox.style.display = "block";
-                }
-              });
-            }
-
-            container.appendChild(box);
-          });
+        if (state.activeFilter === "recent") {
+          entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+        } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
+          entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+        } else {
+          entries.sort((a, b) => a[0].localeCompare(b[0]));
         }
 
-        document.querySelectorAll(".filters button").forEach(btn => {
-          btn.addEventListener("click", () => {
-            document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            state.activeFilter = btn.getAttribute("data-filter");
-            subFilters.style.display = (state.activeFilter === "green" || state.activeFilter === "red") ? "flex" : "none";
-            renderFlips();
-          });
-        });
+        entries.forEach(([symbol, flips]) => {
+          const latest = flips[0];
+          const company = companyData[symbol]?.name || "";
+          const logo = companyData[symbol]?.logo || "";
+          const emoji = latest.type === "green" ? "🐂" : "🐻";
+          const colorClass = latest.type === "green" ? "green" : "red";
 
-        document.querySelectorAll(".sub-filters button").forEach(btn => {
-          btn.addEventListener("click", () => {
-            document.querySelectorAll(".sub-filters button").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            state.sortBy = btn.getAttribute("data-sort");
-            renderFlips();
-          });
-        });
+          const box = document.createElement("div");
+          box.className = `flip ${latest.type}`;
 
-        document.getElementById("searchInput").addEventListener("input", (e) => {
-          state.searchQuery = e.target.value;
+          box.innerHTML = `
+            <div class="flip-header">
+              <div class="flip-left">
+                <span class="emoji">${emoji}</span>
+                ${logo ? `<img src="${logo}" alt="${symbol} logo" class="logo" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','💲')"/>` : '<span class="emoji">💲</span>'}
+                <div class="symbol-name">
+                  <span class="symbol">${symbol}</span>
+                  ${company ? `<span class="company">${company}</span>` : ""}
+                </div>
+                <span class="flipped">flipped</span>
+                <span class="${colorClass}">${latest.type.toUpperCase()}</span>
+                ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
+              </div>
+              <div class="date ${colorClass}">${latest.date}</div>
+            </div>
+            <div class="history-container"></div>
+          `;
+
+          if (state.activeFilter === "all") {
+            const toggle = box.querySelector(".history-toggle");
+            const historyBox = box.querySelector(".history-container");
+
+            toggle?.addEventListener("click", () => {
+              if (historyBox.style.display === "block") {
+                historyBox.style.display = "none";
+              } else {
+                historyBox.innerHTML = flips.map(f => `
+                  <div class="history-entry">
+                    <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
+                    <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
+                  </div>
+                `).join("");
+                historyBox.style.display = "block";
+              }
+            });
+          }
+
+          container.appendChild(box);
+        });
+      }
+
+      document.querySelectorAll(".filters button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          state.activeFilter = btn.getAttribute("data-filter");
+          subFilters.style.display = (state.activeFilter === "green" || state.activeFilter === "red") ? "flex" : "none";
           renderFlips();
         });
+      });
 
+      document.querySelectorAll(".sub-filters button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".sub-filters button").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          state.sortBy = btn.getAttribute("data-sort");
+          renderFlips();
+        });
+      });
+
+      document.getElementById("searchInput").addEventListener("input", (e) => {
+        state.searchQuery = e.target.value;
         renderFlips();
       });
+
+      renderFlips();
+    });
   </script>
 </body>
 </html>
-
