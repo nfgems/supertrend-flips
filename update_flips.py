@@ -148,7 +148,6 @@ def scan():
             logger.error(f"{symbol} - Unexpected error: {e}")
 
     save_flip_history(flip_data)
-    save_flip_history(flip_data)
     logger.info("✅ Flip detection complete. public_flips.json updated.")
 
 if __name__ == "__main__":
