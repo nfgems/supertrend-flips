@@ -1,6 +1,6 @@
 import pandas as pd
 import pandas_ta as ta
-from alpaca.data.historical.stock import StockHistoricalDataClient 
+from alpaca.data.historical.stock import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 from datetime import datetime, timedelta
@@ -95,7 +95,6 @@ def get_bars(symbol, retries=3, delay=3):
                 logger.warning(f"{symbol} - No data returned from Alpaca.")
                 return None
 
-            # If it's a multi-indexed DataFrame (multi-symbol), extract this symbol
             if isinstance(bars.index, pd.MultiIndex):
                 if symbol not in bars.index.levels[0]:
                     logger.warning(f"{symbol} - Not found in multi-indexed response.")
@@ -120,7 +119,11 @@ def detect_flips(df, symbol, existing):
         logger.warning(f"{symbol} missing Supertrend column. Skipping.")
         return
 
-    flips = existing.get(symbol, [])
+    flips = existing.get(symbol)
+    if not isinstance(flips, list):
+        logger.warning(f"{symbol} has malformed flip data. Resetting.")
+        flips = []
+
     recorded_dates = {entry["date"] for entry in flips}
     new_flips = []
 
