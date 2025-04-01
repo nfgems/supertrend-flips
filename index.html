@@ -209,6 +209,7 @@
           });
 
           if (state.activeFilter === "recent") {
+            entries = entries.filter(([_, flips]) => flips.length > 0);
             entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
           } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
             entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
@@ -289,3 +290,4 @@
   </script>
 </body>
 </html>
+
