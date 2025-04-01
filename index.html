@@ -114,11 +114,6 @@
       font-size: 1.1rem;
     }
 
-    .company {
-      font-size: 0.85rem;
-      color: #aaa;
-    }
-
     .flipped {
       font-size: 1rem;
       color: #999;
@@ -188,10 +183,7 @@
   <div id="flipContainer" class="symbol-section"></div>
 
   <script>
-    Promise.all([
-      fetch("public_flips.json").then(res => res.json()),
-      fetch("company_info.json").then(res => res.json()).catch(() => ({}))
-    ]).then(([data, companyData]) => {
+    fetch("public_flips.json").then(res => res.json()).then(data => {
       const container = document.getElementById("flipContainer");
       const subFilters = document.getElementById("subFilters");
       const state = {
@@ -224,7 +216,6 @@
 
         entries.forEach(([symbol, flips]) => {
           const latest = flips[0];
-          const company = companyData[symbol]?.name || "";
           const emoji = latest.type === "green" ? "🐂" : "🐻";
           const colorClass = latest.type === "green" ? "green" : "red";
 
@@ -236,7 +227,6 @@
               <div class="flip-left">
                 <span class="emoji">${emoji}</span>
                 <span class="symbol">${symbol}</span>
-                ${company ? `<span class="company">(${company})</span>` : ""}
                 <span class="flipped">flipped</span>
                 <span class="${colorClass}">${latest.type.toUpperCase()}</span>
                 ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
@@ -298,4 +288,3 @@
   </script>
 </body>
 </html>
-
