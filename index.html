@@ -19,28 +19,27 @@
       margin-top: 1rem;
     }
 
-    .search-bar {
-      text-align: center;
-      margin: 1rem 0 -0.5rem;
-    }
-
-    .search-bar input {
-      background-color: #111;
-      color: #00ff00;
-      border: 1px solid #00ff00;
-      padding: 0.5rem;
-      border-radius: 4px;
-      font-family: monospace;
-      width: 250px;
-      max-width: 90%;
-    }
-
-    .filters, .sub-filters {
+    .tab-selector, .filters, .sub-filters {
       display: flex;
-      flex-wrap: wrap;
       justify-content: center;
+      flex-wrap: wrap;
       gap: 0.5rem;
       margin: 1rem 0;
+    }
+
+    .tab-selector button {
+      background-color: #111;
+      color: white;
+      border: 1px solid #888;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .tab-selector button.active {
+      background-color: #00ff00;
+      color: black;
     }
 
     .filters button, .sub-filters button {
@@ -69,6 +68,22 @@
       border: 1px solid #444;
       padding: 0.3rem 0.7rem;
       font-size: 0.85rem;
+    }
+
+    .search-bar {
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+
+    .search-bar input {
+      background-color: #111;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      width: 250px;
+      max-width: 90%;
     }
 
     .symbol-section {
@@ -164,6 +179,11 @@
 <body>
   <h1>📈 Supertrend Flip Tracker</h1>
 
+  <div class="tab-selector">
+    <button data-tab="1d" class="active">Daily 📅</button>
+    <button data-tab="1w">Weekly 🗓️</button>
+  </div>
+
   <div class="search-bar">
     <input type="text" id="searchInput" placeholder="Search ticker..." />
   </div>
@@ -183,108 +203,133 @@
   <div id="flipContainer" class="symbol-section"></div>
 
   <script>
-    fetch("public_flips.json").then(res => res.json()).then(data => {
-      const container = document.getElementById("flipContainer");
-      const subFilters = document.getElementById("subFilters");
-      const state = {
-        activeFilter: "all",
-        sortBy: "alpha",
-        searchQuery: ""
-      };
-
-      function renderFlips() {
-        container.innerHTML = "";
-
-        let entries = Object.entries(data).filter(([symbol, flips]) => {
-          if (!Array.isArray(flips) || flips.length === 0) return false;
-          if (!symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
-
-          if (state.activeFilter === "green" || state.activeFilter === "red") {
-            return flips[0].type === state.activeFilter;
-          }
-
-          return true;
-        });
-
-        if (state.activeFilter === "recent") {
-          entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
-        } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
-          entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
-        } else {
-          entries.sort((a, b) => a[0].localeCompare(b[0]));
-        }
-
-        entries.forEach(([symbol, flips]) => {
-          const latest = flips[0];
-          const emoji = latest.type === "green" ? "🐂" : "🐻";
-          const colorClass = latest.type === "green" ? "green" : "red";
-
-          const box = document.createElement("div");
-          box.className = `flip ${latest.type}`;
-
-          box.innerHTML = `
-            <div class="flip-header">
-              <div class="flip-left">
-                <span class="emoji">${emoji}</span>
-                <span class="symbol">${symbol}</span>
-                <span class="flipped">flipped</span>
-                <span class="${colorClass}">${latest.type.toUpperCase()}</span>
-                ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
-              </div>
-              <div class="date ${colorClass}">${latest.date}</div>
-            </div>
-            <div class="history-container"></div>
-          `;
-
-          if (state.activeFilter === "all") {
-            const toggle = box.querySelector(".history-toggle");
-            const historyBox = box.querySelector(".history-container");
-
-            toggle?.addEventListener("click", () => {
-              if (historyBox.style.display === "block") {
-                historyBox.style.display = "none";
-              } else {
-                historyBox.innerHTML = flips.map(f => `
-                  <div class="history-entry">
-                    <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
-                    <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
-                  </div>
-                `).join("");
-                historyBox.style.display = "block";
-              }
-            });
-          }
-
-          container.appendChild(box);
-        });
+    const state = {
+      activeTab: "1d",
+      activeFilter: "all",
+      sortBy: "alpha",
+      searchQuery: "",
+      data: {
+        "1d": null,
+        "1w": null
       }
+    };
 
-      document.querySelectorAll(".filters button").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          state.activeFilter = btn.getAttribute("data-filter");
-          subFilters.style.display = (state.activeFilter === "green" || state.activeFilter === "red") ? "flex" : "none";
-          renderFlips();
-        });
-      });
-
-      document.querySelectorAll(".sub-filters button").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".sub-filters button").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          state.sortBy = btn.getAttribute("data-sort");
-          renderFlips();
-        });
-      });
-
-      document.getElementById("searchInput").addEventListener("input", (e) => {
-        state.searchQuery = e.target.value;
+    function fetchAllData() {
+      return Promise.all([
+        fetch("public_flips_1d.json").then(res => res.json()),
+        fetch("public_flips_1w.json").then(res => res.json())
+      ]).then(([d1, d2]) => {
+        state.data["1d"] = d1;
+        state.data["1w"] = d2;
         renderFlips();
       });
+    }
 
+    function renderFlips() {
+      const data = state.data[state.activeTab];
+      const container = document.getElementById("flipContainer");
+      const subFilters = document.getElementById("subFilters");
+      container.innerHTML = "";
+
+      let entries = Object.entries(data).filter(([symbol, flips]) => {
+        if (!Array.isArray(flips) || flips.length === 0) return false;
+        if (!symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
+
+        if (state.activeFilter === "green" || state.activeFilter === "red") {
+          return flips[0].type === state.activeFilter;
+        }
+
+        return true;
+      });
+
+      if (state.activeFilter === "recent") {
+        entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+      } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
+        entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+      } else {
+        entries.sort((a, b) => a[0].localeCompare(b[0]));
+      }
+
+      entries.forEach(([symbol, flips]) => {
+        const latest = flips[0];
+        const emoji = latest.type === "green" ? "🐂" : "🐻";
+        const colorClass = latest.type === "green" ? "green" : "red";
+
+        const box = document.createElement("div");
+        box.className = `flip ${latest.type}`;
+
+        box.innerHTML = `
+          <div class="flip-header">
+            <div class="flip-left">
+              <span class="emoji">${emoji}</span>
+              <span class="symbol">${symbol}</span>
+              <span class="flipped">flipped</span>
+              <span class="${colorClass}">${latest.type.toUpperCase()}</span>
+              ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
+            </div>
+            <div class="date ${colorClass}">${latest.date}</div>
+          </div>
+          <div class="history-container"></div>
+        `;
+
+        if (state.activeFilter === "all") {
+          const toggle = box.querySelector(".history-toggle");
+          const historyBox = box.querySelector(".history-container");
+
+          toggle?.addEventListener("click", () => {
+            if (historyBox.style.display === "block") {
+              historyBox.style.display = "none";
+            } else {
+              historyBox.innerHTML = flips.map(f => `
+                <div class="history-entry">
+                  <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
+                  <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
+                </div>
+              `).join("");
+              historyBox.style.display = "block";
+            }
+          });
+        }
+
+        container.appendChild(box);
+      });
+    }
+
+    document.querySelectorAll(".tab-selector button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-selector button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.activeTab = btn.getAttribute("data-tab");
+        renderFlips();
+      });
+    });
+
+    document.querySelectorAll(".filters button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.activeFilter = btn.getAttribute("data-filter");
+        document.getElementById("subFilters").style.display =
+          (state.activeFilter === "green" || state.activeFilter === "red") ? "flex" : "none";
+        renderFlips();
+      });
+    });
+
+    document.querySelectorAll(".sub-filters button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".sub-filters button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.sortBy = btn.getAttribute("data-sort");
+        renderFlips();
+      });
+    });
+
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+      state.searchQuery = e.target.value;
       renderFlips();
     });
+
+    fetchAllData();
   </script>
 </body>
 </html>
