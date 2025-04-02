@@ -141,39 +141,40 @@ def get_bars(symbol, retries=3, delay=3, timeframe=TimeFrame.Day):
     logger.error(f"{symbol} - Failed after {retries} retries.")
     return None
 
-def get_crypto_ohlc(coin_id, days=365, retries=3, delay=3):
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+def get_crypto_ohlc(symbol, interval="1d", limit=365, retries=3, delay=3):
+    url = f"https://api.binance.com/api/v3/klines"
     params = {
-        "vs_currency": "usd",
-        "days": days,
-        "interval": "daily"
+        "symbol": symbol,
+        "interval": interval,
+        "limit": limit
     }
     for attempt in range(retries):
         try:
             response = requests.get(url, params=params)
             response.raise_for_status()
-            data = response.json()
-            if 'prices' not in data or not data['prices']:
-                logger.warning(f"{coin_id} - 'prices' key missing or empty in response.")
+            raw = response.json()
+            if not raw:
                 return None
-            df = pd.DataFrame(data['prices'], columns=['timestamp', 'price'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            df.set_index('timestamp', inplace=True)
-            df['close'] = df['price']
-            df['high'] = df['close'] * 1.02
-            df['low'] = df['close'] * 0.98
-            return df[['high', 'low', 'close']]
+            df = pd.DataFrame(raw, columns=[
+                "timestamp", "open", "high", "low", "close", "volume",
+                "close_time", "quote_asset_volume", "number_of_trades",
+                "taker_buy_base_vol", "taker_buy_quote_vol", "ignore"
+            ])
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df.set_index("timestamp", inplace=True)
+            df["high"] = pd.to_numeric(df["high"])
+            df["low"] = pd.to_numeric(df["low"])
+            df["close"] = pd.to_numeric(df["close"])
+            return df[["high", "low", "close"]]
         except requests.exceptions.HTTPError as e:
+            logger.warning(f"{symbol} - HTTP error: {e}")
             if e.response.status_code == 429:
-                logger.warning(f"{coin_id} - Rate limited. Retrying in {delay}s...")
                 time.sleep(delay)
-            else:
-                logger.warning(f"{coin_id} - HTTP error: {e}")
-                break
         except Exception as e:
-            logger.warning(f"{coin_id} - Unexpected error: {e}")
-            break
+            logger.warning(f"{symbol} - Unexpected error: {e}")
+            time.sleep(delay)
     return None
+
 
 def calculate_supertrend(df):
     st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3.0)
