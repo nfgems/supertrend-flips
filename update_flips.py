@@ -428,37 +428,97 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
         except Exception as e:
             logger.warning(f"{symbol} ({label}) - Alpaca error: {e}")
     
-    # For all timeframes (if 1d failed with Alpaca, or for 1w/1m)
-    # Use a more robust approach with yfinance
+    # Try using direct requests to Yahoo Finance API
+    try:
+        end_timestamp = int(datetime.now().timestamp())
+        start_timestamp = end_timestamp - 31536000  # One year in seconds
+        
+        if label == "1d":
+            interval = "1d"
+        elif label == "1w":
+            interval = "1wk"
+        else:
+            interval = "1mo"
+        
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+        params = {
+            "period1": start_timestamp,
+            "period2": end_timestamp,
+            "interval": interval,
+            "includePrePost": False
+        }
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        
+        response = requests.get(url, params=params, headers=headers)
+        data = response.json()
+        
+        if "chart" in data and "result" in data["chart"] and data["chart"]["result"]:
+            result = data["chart"]["result"][0]
+            
+            # Extract timestamp and price data
+            timestamps = result["timestamp"]
+            quote = result["indicators"]["quote"][0]
+            
+            if not all(key in quote for key in ["high", "low", "close"]):
+                logger.warning(f"{symbol} ({label}) - Yahoo API missing required data")
+                return None
+                
+            # Create dataframe
+            df = pd.DataFrame({
+                "timestamp": pd.to_datetime(timestamps, unit="s"),
+                "high": quote["high"],
+                "low": quote["low"],
+                "close": quote["close"]
+            })
+            
+            # Clean data
+            df = df.dropna()
+            df.set_index("timestamp", inplace=True)
+            
+            if len(df) >= 6:
+                return df
+            else:
+                logger.warning(f"{symbol} ({label}) - Not enough data points from Yahoo API: {len(df)}")
+        else:
+            logger.warning(f"{symbol} ({label}) - No data returned from Yahoo API")
+    
+    except Exception as e:
+        logger.warning(f"{symbol} ({label}) - Yahoo API error: {e}")
+    
+    # Fall back to yfinance with multiple retries as last resort
     for attempt in range(retries):
         try:
             # Increase backoff time with each retry
             backoff_delay = delay * (2 ** attempt)
             
+            # Add a custom user agent
+            yf.pdr_override()
+            
             # Try a different approach for each attempt
             if attempt == 0:
-                # Standard approach
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
-                df = yf.download(symbol, period="1y", interval=interval, progress=False)
+                df = yf.download(symbol, period="1y", interval=interval, progress=False, 
+                                 headers={"User-Agent": "Mozilla/5.0"})
             elif attempt == 1:
-                # Try with different period
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
-                df = yf.download(symbol, period="2y", interval=interval, progress=False)
+                df = yf.download(symbol, period="2y", interval=interval, progress=False,
+                                 headers={"User-Agent": "Mozilla/5.0"})
             else:
-                # Try with specific date range
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=365)
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
                 df = yf.download(symbol, start=start_date.strftime('%Y-%m-%d'), 
                                 end=end_date.strftime('%Y-%m-%d'), 
-                                interval=interval, progress=False)
+                                interval=interval, progress=False,
+                                headers={"User-Agent": "Mozilla/5.0"})
             
             if df.empty or len(df) < 1:
                 logger.warning(f"{symbol} ({label}) - YFinance returned empty dataframe (attempt {attempt+1})")
                 time.sleep(backoff_delay)
                 continue
                 
-            # Check if we have all required columns
             if not all(col in df.columns for col in ["High", "Low", "Close"]):
                 logger.warning(f"{symbol} ({label}) - YFinance missing required columns (attempt {attempt+1})")
                 time.sleep(backoff_delay)
