@@ -274,31 +274,32 @@
       });
     }
 
-    function findSearchMatches() {
-      const query = state.searchQuery.toLowerCase().trim();
-      if (!query) return [];
+  function findSearchMatches() {
+    const query = state.searchQuery.toLowerCase().trim();
+    if (!query) return [];
 
-      const matches = [];
-      const stockTimeframes = ["1d", "1w", "1m"];
+    const matches = [];
+    const timeframes = ["1d", "1w", "1m", "crypto"];
 
-      stockTimeframes.forEach(timeframe => {
-        const timeframeData = state.data[timeframe];
-        if (!timeframeData) return;
+    timeframes.forEach(timeframe => {
+      const timeframeData = state.data[timeframe];
+      if (!timeframeData) return;
 
-        Object.entries(timeframeData).forEach(([symbol, flips]) => {
-          if (symbol.toLowerCase().includes(query)) {
-            matches.push({
-              symbol,
-              timeframe,
-              flips,
-              category: "STOCK"
-            });
-          }
-        });
+      Object.entries(timeframeData).forEach(([symbol, flips]) => {
+        if (symbol.toLowerCase().includes(query)) {
+          matches.push({
+            symbol,
+            timeframe,
+            flips,
+            category: timeframe === "crypto" ? "CRYPTO" : "STOCK"
+          });
+        }
       });
+    });
 
-      return matches;
-    }
+    return matches;
+  }
+
 
     function renderSearchResults(matches) {
       const container = document.getElementById("flipContainer");
