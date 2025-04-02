@@ -348,7 +348,6 @@ CRYPTO_SYMBOLS = {
     "ZRO": "ZRO-USD",
     "ZRX": "ZRX-USD"
 }
-
 # Identify and remove duplicate tickers that exist in both lists
 CRYPTO = list(CRYPTO_SYMBOLS.keys())
 CRYPTO_SET = set(CRYPTO)
@@ -431,7 +430,14 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
     # Try using direct requests to Yahoo Finance API
     try:
         end_timestamp = int(datetime.now().timestamp())
-        start_timestamp = end_timestamp - 31536000  # One year in seconds
+        
+        # Adjust lookback period based on timeframe
+        if label == "1m":
+            start_timestamp = end_timestamp - (10 * 31536000)  # 10 years in seconds
+        elif label == "1w":
+            start_timestamp = end_timestamp - (5 * 31536000)  # 5 years in seconds
+        else:
+            start_timestamp = end_timestamp - 31536000  # 1 year in seconds
         
         if label == "1d":
             interval = "1d"
@@ -481,6 +487,8 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
                         df = df.dropna()
                         df.set_index("timestamp", inplace=True)
                         
+                        logger.info(f"{symbol} ({label}) - Retrieved {len(df)} data points from Yahoo API")
+                        
                         if len(df) >= 6:
                             return df
                         else:
@@ -504,16 +512,38 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
             }
             
-            # Try a different approach for each attempt
+            # Try a different approach for each attempt, with timeframe-specific periods
             if attempt == 0:
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
-                df = yf.download(symbol, period="1y", interval=interval, progress=False, headers=headers)
+                
+                if label == "1m":
+                    df = yf.download(symbol, period="10y", interval=interval, progress=False, headers=headers)
+                elif label == "1w":
+                    df = yf.download(symbol, period="5y", interval=interval, progress=False, headers=headers)
+                else:
+                    df = yf.download(symbol, period="1y", interval=interval, progress=False, headers=headers)
+                
             elif attempt == 1:
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
-                df = yf.download(symbol, period="2y", interval=interval, progress=False, headers=headers)
+                
+                if label == "1m":
+                    df = yf.download(symbol, period="max", interval=interval, progress=False, headers=headers)
+                elif label == "1w":
+                    df = yf.download(symbol, period="10y", interval=interval, progress=False, headers=headers)
+                else:
+                    df = yf.download(symbol, period="2y", interval=interval, progress=False, headers=headers)
+                
             else:
+                # Last attempt with explicit date ranges
                 end_date = datetime.now()
-                start_date = end_date - timedelta(days=365)
+                
+                if label == "1m":
+                    start_date = end_date - timedelta(days=365*10)  # 10 years
+                elif label == "1w":
+                    start_date = end_date - timedelta(days=365*5)   # 5 years
+                else:
+                    start_date = end_date - timedelta(days=365*2)   # 2 years
+                
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
                 df = yf.download(
                     symbol, 
@@ -538,6 +568,8 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
             df = df[["High", "Low", "Close"]].rename(columns={"High": "high", "Low": "low", "Close": "close"})
             df = df.dropna()
             
+            logger.info(f"{symbol} ({label}) - Retrieved {len(df)} data points from YFinance (attempt {attempt+1})")
+            
             if len(df) < 6:
                 logger.warning(f"{symbol} ({label}) - Not enough YFinance data points: {len(df)}")
                 time.sleep(backoff_delay)
@@ -551,9 +583,23 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
     logger.warning(f"{symbol} ({label}) - Failed to get data after all attempts")
     return None
 
-def calculate_supertrend(df):
+def calculate_supertrend(df, timeframe):
     try:
-        st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3.0)
+        # Use different parameters based on timeframe
+        if timeframe == "1m":
+            # Monthly parameters
+            atr_period = 50
+            multiplier = 5.0
+        elif timeframe == "1w":
+            # Weekly parameters
+            atr_period = 21
+            multiplier = 4.0
+        else:
+            # Daily parameters (default)
+            atr_period = 10
+            multiplier = 3.0
+            
+        st = ta.supertrend(df['high'], df['low'], df['close'], length=atr_period, multiplier=multiplier)
         if st is None or st.empty:
             return None
         return df.join(st)
@@ -561,23 +607,36 @@ def calculate_supertrend(df):
         logger.warning(f"Supertrend calculation failed: {e}")
         return None
 
-def detect_flips(df, display_symbol, existing):
-    if 'SUPERT_10_3.0' not in df.columns:
-        logger.warning(f"{display_symbol} missing Supertrend column. Skipping.")
+def detect_flips(df, display_symbol, existing, timeframe):
+    # Determine which Supertrend column to use based on timeframe
+    if timeframe == "1m":
+        supert_col = 'SUPERT_50_5.0'
+    elif timeframe == "1w":
+        supert_col = 'SUPERT_21_4.0'
+    else:
+        supert_col = 'SUPERT_10_3.0'
+    
+    if supert_col not in df.columns:
+        logger.warning(f"{display_symbol} missing {supert_col} column. Skipping.")
         return
+        
     flips = existing.get(display_symbol, [])
     recorded_dates = set((entry["date"], entry["type"]) for entry in flips)
     new_flips = []
+    
     for i in range(1, len(df)):
         prev = df.iloc[i - 1]
         curr = df.iloc[i]
         date_str = str(curr.name.date())
+        
         if (date_str, "green") in recorded_dates or (date_str, "red") in recorded_dates:
             continue
-        if prev['SUPERT_10_3.0'] > prev['close'] and curr['SUPERT_10_3.0'] < curr['close']:
+            
+        if prev[supert_col] > prev['close'] and curr[supert_col] < curr['close']:
             new_flips.append({"date": date_str, "type": "green"})
-        elif prev['SUPERT_10_3.0'] < prev['close'] and curr['SUPERT_10_3.0'] > curr['close']:
+        elif prev[supert_col] < prev['close'] and curr[supert_col] > curr['close']:
             new_flips.append({"date": date_str, "type": "red"})
+            
     if new_flips:
         all_flips = flips + new_flips
         all_flips.sort(key=lambda x: x["date"], reverse=True)
@@ -595,13 +654,13 @@ def run_stocks():
                 logger.warning(f"{display_symbol} ({label}) - Not enough data.")
                 continue
 
-            df = calculate_supertrend(df)
+            df = calculate_supertrend(df, label)
             if df is None:
                 logger.warning(f"{display_symbol} ({label}) - Supertrend failed.")
                 continue
 
             before = len(flip_data.get(display_symbol, []))
-            detect_flips(df, display_symbol, flip_data)
+            detect_flips(df, display_symbol, flip_data, label)
             after = len(flip_data.get(display_symbol, []))
             logger.info(f"{display_symbol} ({label}) - {after - before} new flips.")
 
@@ -630,12 +689,12 @@ def run_crypto():
             if df is None or len(df) < 6:
                 logger.warning(f"{display_symbol} ({label}) - Not enough data.")
                 continue
-            df = calculate_supertrend(df)
+            df = calculate_supertrend(df, label)
             if df is None:
                 logger.warning(f"{display_symbol} ({label}) - Supertrend failed.")
                 continue
             before = len(flip_data.get(display_symbol, []))
-            detect_flips(df, display_symbol, flip_data)
+            detect_flips(df, display_symbol, flip_data, label)
             after = len(flip_data.get(display_symbol, []))
             logger.info(f"{display_symbol} ({label}) - {after - before} new flips.")
             time.sleep(1.5 + random.uniform(0.5, 1.0))
