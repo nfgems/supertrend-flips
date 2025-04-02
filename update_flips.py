@@ -214,7 +214,6 @@ CRYPTO_SYMBOLS = {
     "KNC": "KNC-USD",
     "KRL": "KRL-USD",
     "KSM": "KSM-USD",
-    "L3": "L3-USD",
     "LCX": "LCX-USD",
     "LDO": "LDO-USD",
     "LIT": "LIT-USD",
@@ -354,16 +353,14 @@ CRYPTO_SYMBOLS = {
 CRYPTO = list(CRYPTO_SYMBOLS.keys())
 
 TIMEFRAMES = {
-    "1d": TimeFrame.Day,
-    "1w": TimeFrame.Week,
-    "1m": TimeFrame.Month
+    "1d": TimeFrame.Day
 }
 
+
 COINBASE_GRANULARITIES = {
-    "1d": 86400,
-    "1w": 604800,
-    "1m": 2592000
+    "1d": 86400
 }
+
 
 def load_flip_history(filename):
     if not os.path.exists(filename):
@@ -483,4 +480,3 @@ def run_crypto():
 
 if __name__ == "__main__":
     run_crypto()
-
