@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Supertrend Flips</title>
+  <title>Supertrend Flip Tracker</title>
   <style>
     body {
       margin: 0;
@@ -274,42 +274,121 @@
       });
     }
 
+    function findSearchMatches() {
+      const query = state.searchQuery.toLowerCase().trim();
+      if (!query) return [];
+
+      const matches = [];
+      const stockTimeframes = ["1d", "1w", "1m"];
+
+      stockTimeframes.forEach(timeframe => {
+        const timeframeData = state.data[timeframe];
+        if (!timeframeData) return;
+
+        Object.entries(timeframeData).forEach(([symbol, flips]) => {
+          if (symbol.toLowerCase().includes(query)) {
+            matches.push({
+              symbol,
+              timeframe,
+              flips,
+              category: "STOCK"
+            });
+          }
+        });
+      });
+
+      return matches;
+    }
+
+    function renderSearchResults(matches) {
+      const container = document.getElementById("flipContainer");
+      container.innerHTML = "";
+
+      if (matches.length === 0) {
+        container.innerHTML = `<div class="no-data">No matches found.</div>`;
+        return;
+      }
+
+      matches.forEach(({ symbol, timeframe, flips, category }) => {
+        const latest = flips[0];
+        const emoji = latest.type === "green" ? "🐂" : "🐻";
+        const colorClass = latest.type === "green" ? "green" : "red";
+
+        const box = document.createElement("div");
+        box.className = `flip ${latest.type}`;
+
+        box.innerHTML = `
+          <div class="flip-header">
+            <div class="flip-left">
+              <span class="emoji">${emoji}</span>
+              <span class="symbol">${symbol}</span>
+              <span class="category-label">${timeframe.toUpperCase()} ${category}</span>
+              <span class="flipped">flipped</span>
+              <span class="${colorClass}">${latest.type.toUpperCase()}</span>
+            </div>
+            <div class="date ${colorClass}">${latest.date}</div>
+          </div>
+        `;
+
+        box.addEventListener('click', () => {
+          const tabButton = document.querySelector(`.tab-selector button[data-tab="${timeframe}"]`);
+          if (tabButton) {
+            document.querySelectorAll(".tab-selector button").forEach(b => b.classList.remove("active"));
+            tabButton.classList.add("active");
+            state.activeTab = timeframe;
+            state.searchQuery = symbol;
+            renderFlips();
+          }
+        });
+
+        container.appendChild(box);
+      });
+    }
+
     function renderFlips() {
       const container = document.getElementById("flipContainer");
       const subFilters = document.getElementById("subFilters");
       container.innerHTML = "";
 
-      let entries = [];
-
-      for (let tab in state.data) {
-        const tabData = state.data[tab];
-        if (!tabData) continue;
-
-        for (let [symbol, flips] of Object.entries(tabData)) {
-          if (!Array.isArray(flips) || flips.length === 0) continue;
-          if (state.searchQuery && !symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) continue;
-
-          if (state.activeFilter === "green" || state.activeFilter === "red") {
-            if (flips[0].type !== state.activeFilter) continue;
-          }
-
-          entries.push({ symbol, flips, category: tab === "crypto" ? "CRYPTO" : "STOCK" });
-        }
+      const searchMatches = findSearchMatches();
+      if (state.searchQuery && searchMatches.length > 0) {
+        renderSearchResults(searchMatches);
+        return;
       }
 
-      if (state.activeFilter === "recent") {
-        entries.sort((a, b) => new Date(b.flips[0].date) - new Date(a.flips[0].date));
-      } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
-        entries.sort((a, b) => new Date(b.flips[0].date) - new Date(a.flips[0].date));
+      let entries = [];
+      const processedSymbols = new Set();
+      const currentDataSource = state.activeTab === "crypto" ? state.data["crypto"] : state.data[state.activeTab];
+
+      if (!currentDataSource) {
+        container.innerHTML = `<div class="no-data">No data available for this timeframe.</div>`;
+        return;
+      }
+
+      for (let [symbol, flips] of Object.entries(currentDataSource)) {
+        if (processedSymbols.has(symbol)) continue;
+        if (!Array.isArray(flips) || flips.length === 0) continue;
+        if (state.searchQuery && !symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) continue;
+
+        const latest = flips[0];
+        if (state.activeFilter === "green" || state.activeFilter === "red") {
+          if (latest.type !== state.activeFilter) continue;
+        }
+
+        processedSymbols.add(symbol);
+        entries.push({ 
+          symbol, 
+          flips, 
+          category: state.activeTab === "crypto" ? "CRYPTO" : "STOCK",
+          latestDate: new Date(latest.date)
+        });
+      }
+
+      if (state.activeFilter === "recent" || 
+          ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent")) {
+        entries.sort((a, b) => b.latestDate - a.latestDate);
       } else {
         entries.sort((a, b) => a.symbol.localeCompare(b.symbol));
-      }
-
-      if (!state.searchQuery) {
-        entries = entries.filter(entry => {
-          const tabData = state.data[state.activeTab];
-          return tabData && tabData[entry.symbol];
-        });
       }
 
       if (entries.length === 0) {
@@ -334,14 +413,14 @@
               ${label}
               <span class="flipped">flipped</span>
               <span class="${colorClass}">${latest.type.toUpperCase()}</span>
-              ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
+              ${state.activeTab !== "crypto" && state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
             </div>
             <div class="date ${colorClass}">${latest.date}</div>
           </div>
           <div class="history-container"></div>
         `;
 
-        if (state.activeFilter === "all") {
+        if (state.activeTab !== "crypto" && state.activeFilter === "all") {
           const toggle = box.querySelector(".history-toggle");
           const historyBox = box.querySelector(".history-container");
 
@@ -349,7 +428,8 @@
             if (historyBox.style.display === "block") {
               historyBox.style.display = "none";
             } else {
-              historyBox.innerHTML = flips.map(f => `
+              const timeframeFlips = flips.filter(f => f.type);
+              historyBox.innerHTML = timeframeFlips.map(f => `
                 <div class="history-entry">
                   <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
                   <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
@@ -369,6 +449,8 @@
         document.querySelectorAll(".tab-selector button").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         state.activeTab = btn.getAttribute("data-tab");
+        state.searchQuery = "";
+        document.getElementById("searchInput").value = "";
         renderFlips();
       });
     });
@@ -400,3 +482,5 @@
 
     fetchAllData();
   </script>
+</body>
+</html>
