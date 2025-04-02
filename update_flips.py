@@ -71,7 +71,6 @@ CRYPTO_SYMBOLS = {
     "APT": "APT-USD",
     "PEPE": "PEPE-USD",
     "TAO": "TAO-USD",
-    "ENA": "ENA-USD",
     "TRUMP": "TRUMP-USD",
     "AAVE": "AAVE-USD",
     "BONK": "BONK-USD",
@@ -416,8 +415,14 @@ def get_crypto_ohlc(symbol, timeframe="1d", retries=3, delay=3):
     return None
 
 def calculate_supertrend(df):
-    st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3.0)
-    return df.join(st)
+    try:
+        st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3.0)
+        if st is None or st.empty:
+            return None
+        return df.join(st)
+    except Exception as e:
+        logger.warning(f"Supertrend calculation failed: {e}")
+        return None
 
 def detect_flips(df, display_symbol, existing):
     if 'SUPERT_10_3.0' not in df.columns:
@@ -455,6 +460,10 @@ def run_crypto():
                 continue
 
             df = calculate_supertrend(df)
+            if df is None:
+                logger.warning(f"{display_symbol} ({label}) - Failed to calculate Supertrend. Skipping.")
+                continue
+
             before = len(flip_data.get(display_symbol, []))
             detect_flips(df, display_symbol, flip_data)
             after = len(flip_data.get(display_symbol, []))
@@ -471,63 +480,3 @@ def run_crypto():
             logger.error(f"❌ File '{filename}' not found after save attempt.")
 
         logger.info(f"✅ CRYPTO flip detection complete for {label.upper()} timeframe.")
-
-def run_stocks():
-    for label, tf in TIMEFRAMES.items():
-        filename = f"public_flips_{label}.json"
-        flip_data = load_flip_history(filename)
-        for symbol in SP500:
-            try:
-                end = datetime.utcnow()
-                start = end - timedelta(days=1000)
-                request = StockBarsRequest(
-                    symbol_or_symbols=symbol,
-                    timeframe=tf,
-                    start=start,
-                    end=end,
-                    feed='iex'
-                )
-                bars = client.get_stock_bars(request).df
-                if bars.empty or len(bars) < 6:
-                    logger.warning(f"{symbol} - No data or insufficient candles.")
-                    continue
-                if isinstance(bars.index, pd.MultiIndex):
-                    if symbol not in bars.index.levels[0]:
-                        logger.warning(f"{symbol} - Not found in multi-indexed response.")
-                        continue
-                    bars = bars.xs(symbol, level=0)
-                bars = calculate_supertrend(bars)
-                detect_flips(bars, symbol, flip_data)
-            except Exception as e:
-                logger.error(f"{symbol} - Error during stock processing: {e}")
-        save_flip_history(flip_data, filename)
-        logger.info(f"✅ {label.upper()} stock flip detection complete. {filename} updated.")
-
-def merge_all_flips(output_filename="public_flips_all.json"):
-    all_files = [f for f in glob("public_flips_*.json") if "all" not in f]
-    merged = {}
-
-    for file in all_files:
-        with open(file, "r") as f:
-            data = json.load(f)
-        for symbol, flips in data.items():
-            if symbol not in merged:
-                merged[symbol] = flips
-            else:
-                merged[symbol].extend(flips)
-
-    for symbol, flips in merged.items():
-        unique = {f"{flip['date']}-{flip['type']}": flip for flip in flips}
-        sorted_flips = sorted(unique.values(), key=lambda x: x["date"], reverse=True)
-        merged[symbol] = sorted_flips
-
-    with open(output_filename, "w") as f:
-        json.dump(merged, f, indent=2)
-
-    logger.info(f"✅ Merged all flips into {output_filename}")
-
-if __name__ == "__main__":
-    run_stocks()
-    run_crypto()
-    merge_all_flips()
-
