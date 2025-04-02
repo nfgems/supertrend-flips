@@ -10,6 +10,7 @@ import os
 import json
 import time
 import logging
+from glob import glob
 
 # Configure logging
 logging.basicConfig(
@@ -25,6 +26,7 @@ logger = logging.getLogger()
 api_key = os.getenv("ALPACA_API_KEY")
 secret_key = os.getenv("ALPACA_SECRET_KEY")
 client = StockHistoricalDataClient(api_key, secret_key)
+
 
 SP500 = [
     "A", "AAPL", "ABBV", "ABNB", "ABT", "ACAD", "ACGL", "ACN", "ADBE", "ADI", "ADM", "ADP", "ADSK", "AEE", "AEP", "AES", "AFL", "AFRM", "AIG", "AIZ", "AJG", "AKAM", "ALB", "ALGN", "ALL", "ALLE", "ALLY", "ALNY", "AMAT", "AMCR", "AMD", "AME", "AMGN", "AMP", "AMT", "AMZN", "ANET", "ANSS", "AON", "AOS", "APA", "APD", "APH", "APO", "APPF", "APPN", "APTV", "ARLO", "ARE", "ATO", "AVAV", "AVB", "AVGO", "AVY", "AWK", "AXON", "AXP", "AZO",
@@ -55,31 +57,299 @@ SP500 = [
 ]
 
 CRYPTO_SYMBOLS = {
-    "BTC": "BTCUSDT",
-    "ETH": "ETHUSDT",
-    "BNB": "BNBUSDT",
-    "SOL": "SOLUSDT",
-    "XRP": "XRPUSDT",
-    "LINK": "LINKUSDT",
-    "DOGE": "DOGEUSDT",
-    "ADA": "ADAUSDT",
-    "TRX": "TRXUSDT",
-    "AVAX": "AVAXUSDT",
-    "SUI": "SUIUSDT",
-    "LTC": "LTCUSDT",
-    "BCH": "BCHUSDT",
-    "APT": "APTUSDT",
-    "PEPE": "PEPEUSDT",
-    "TAO": "TAOUSDT",
-    "ENA": "ENAUSDT",
-    "TRUMP": "TRUMPUSDT",
-    "AAVE": "AAVEUSDT",
-    "BONK": "BONKUSDT",
-    "WIF": "WIFUSDT",
-    "PENGU": "PENGUUSDT",
-    "POPCAT": "POPCATUSDT",
-    "MELANIA": "MELANIAUSDT",
-    "SONIC": "SUSDC"
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD",
+    "SOL": "SOL-USD",
+    "XRP": "XRP-USD",
+    "LINK": "LINK-USD",
+    "DOGE": "DOGE-USD",
+    "ADA": "ADA-USD",
+    "AVAX": "AVAX-USD",
+    "SUI": "SUI-USD",
+    "LTC": "LTC-USD",
+    "BCH": "BCH-USD",
+    "APT": "APT-USD",
+    "PEPE": "PEPE-USD",
+    "TAO": "TAO-USD",
+    "ENA": "ENA-USD",
+    "TRUMP": "TRUMP-USD",
+    "AAVE": "AAVE-USD",
+    "BONK": "BONK-USD",
+    "WIF": "WIF-USD",
+    "PENGU": "PENGU-USD",
+    "POPCAT": "POPCAT-USD",
+    "00": "00-USD",
+    "1INCH": "1INCH-USD",
+    "A8": "A8-USD",
+    "ABT": "ABT-USD",
+    "ACH": "ACH-USD",
+    "ACS": "ACS-USD",
+    "ACX": "ACX-USD",
+    "AERGO": "AERGO-USD",
+    "AERO": "AERO-USD",
+    "AGLD": "AGLD-USD",
+    "AIOZ": "AIOZ-USD",
+    "AKT": "AKT-USD",
+    "ALCX": "ALCX-USD",
+    "ALEO": "ALEO-USD",
+    "ALEPH": "ALEPH-USD",
+    "ALGO": "ALGO-USD",
+    "ALICE": "ALICE-USD",
+    "ALT": "ALT-USD",
+    "AMP": "AMP-USD",
+    "ANKR": "ANKR-USD",
+    "APE": "APE-USD",
+    "API3": "API3-USD",
+    "ARB": "ARB-USD",
+    "ARKM": "ARKM-USD",
+    "ARPA": "ARPA-USD",
+    "ASM": "ASM-USD",
+    "AST": "AST-USD",
+    "ATH": "ATH-USD",
+    "ATOM": "ATOM-USD",
+    "AUCTION": "AUCTION-USD",
+    "AUDIO": "AUDIO-USD",
+    "AURORA": "AURORA-USD",
+    "AVT": "AVT-USD",
+    "AXL": "AXL-USD",
+    "AXS": "AXS-USD",
+    "B3": "B3-USD",
+    "BADGER": "BADGER-USD",
+    "BAL": "BAL-USD",
+    "BAND": "BAND-USD",
+    "BAT": "BAT-USD",
+    "BERA": "BERA-USD",
+    "BICO": "BICO-USD",
+    "BIGTIME": "BIGTIME-USD",
+    "BLAST": "BLAST-USD",
+    "BLUR": "BLUR-USD",
+    "BLZ": "BLZ-USD",
+    "BNT": "BNT-USD",
+    "BOBA": "BOBA-USD",
+    "BTRST": "BTRST-USD",
+    "C98": "C98-USD",
+    "CBETH": "CBETH-USD",
+    "CELR": "CELR-USD",
+    "CGLD": "CGLD-USD",
+    "CHZ": "CHZ-USD",
+    "CLV": "CLV-USD",
+    "COMP": "COMP-USD",
+    "COOKIE": "COOKIE-USD",
+    "CORECHAIN": "CORECHAIN-USD",
+    "COTI": "COTI-USD",
+    "COW": "COW-USD",
+    "CRO": "CRO-USD",
+    "CRV": "CRV-USD",
+    "CTSI": "CTSI-USD",
+    "CTX": "CTX-USD",
+    "CVC": "CVC-USD",
+    "CVX": "CVX-USD",
+    "DAI": "DAI-USD",
+    "DAR": "DAR-USD",
+    "DASH": "DASH-USD",
+    "DEGEN": "DEGEN-USD",
+    "DEXT": "DEXT-USD",
+    "DIA": "DIA-USD",
+    "DIMO": "DIMO-USD",
+    "DNT": "DNT-USD",
+    "DOGINME": "DOGINME-USD",
+    "DOT": "DOT-USD",
+    "DRIFT": "DRIFT-USD",
+    "EGLD": "EGLD-USD",
+    "EIGEN": "EIGEN-USD",
+    "ELA": "ELA-USD",
+    "ENS": "ENS-USD",
+    "EOS": "EOS-USD",
+    "ERN": "ERN-USD",
+    "ETC": "ETC-USD",
+    "ETHFI": "ETHFI-USD",
+    "FAI": "FAI-USD",
+    "FARM": "FARM-USD",
+    "FET": "FET-USD",
+    "FIDA": "FIDA-USD",
+    "FIL": "FIL-USD",
+    "FIS": "FIS-USD",
+    "FLOKI": "FLOKI-USD",
+    "FLOW": "FLOW-USD",
+    "FLR": "FLR-USD",
+    "FORT": "FORT-USD",
+    "FORTH": "FORTH-USD",
+    "FOX": "FOX-USD",
+    "FX": "FX-USD",
+    "G": "G-USD",
+    "GAL": "GAL-USD",
+    "GFI": "GFI-USD",
+    "GHST": "GHST-USD",
+    "GIGA": "GIGA-USD",
+    "GLM": "GLM-USD",
+    "GMT": "GMT-USD",
+    "GNO": "GNO-USD",
+    "GODS": "GODS-USD",
+    "GRT": "GRT-USD",
+    "GST": "GST-USD",
+    "GTC": "GTC-USD",
+    "GUSD": "GUSD-USD",
+    "GYEN": "GYEN-USD",
+    "HBAR": "HBAR-USD",
+    "HFT": "HFT-USD",
+    "HIGH": "HIGH-USD",
+    "HNT": "HNT-USD",
+    "HONEY": "HONEY-USD",
+    "HOPR": "HOPR-USD",
+    "ICP": "ICP-USD",
+    "IDEX": "IDEX-USD",
+    "ILV": "ILV-USD",
+    "IMX": "IMX-USD",
+    "INDEX": "INDEX-USD",
+    "INJ": "INJ-USD",
+    "INV": "INV-USD",
+    "IO": "IO-USD",
+    "IOTX": "IOTX-USD",
+    "IP": "IP-USD",
+    "JASMY": "JASMY-USD",
+    "JTO": "JTO-USD",
+    "KAITO": "KAITO-USD",
+    "KARRAT": "KARRAT-USD",
+    "KAVA": "KAVA-USD",
+    "KEYCAT": "KEYCAT-USD",
+    "KNC": "KNC-USD",
+    "KRL": "KRL-USD",
+    "KSM": "KSM-USD",
+    "L3": "L3-USD",
+    "LCX": "LCX-USD",
+    "LDO": "LDO-USD",
+    "LIT": "LIT-USD",
+    "LOKA": "LOKA-USD",
+    "LPT": "LPT-USD",
+    "LQTY": "LQTY-USD",
+    "LRC": "LRC-USD",
+    "LRDS": "LRDS-USD",
+    "LSETH": "LSETH-USD",
+    "MAGIC": "MAGIC-USD",
+    "MANA": "MANA-USD",
+    "MASK": "MASK-USD",
+    "MATH": "MATH-USD",
+    "MATIC": "MATIC-USD",
+    "MDT": "MDT-USD",
+    "ME": "ME-USD",
+    "MEDIA": "MEDIA-USD",
+    "METIS": "METIS-USD",
+    "MINA": "MINA-USD",
+    "MKR": "MKR-USD",
+    "MLN": "MLN-USD",
+    "MNDE": "MNDE-USD",
+    "MOBILE": "MOBILE-USD",
+    "MOG": "MOG-USD",
+    "MOODENG": "MOODENG-USD",
+    "MORPHO": "MORPHO-USD",
+    "MOVE": "MOVE-USD",
+    "MPL": "MPL-USD",
+    "MSOL": "MSOL-USD",
+    "MUSE": "MUSE-USD",
+    "NCT": "NCT-USD",
+    "NEAR": "NEAR-USD",
+    "NEON": "NEON-USD",
+    "NKN": "NKN-USD",
+    "NMR": "NMR-USD",
+    "OCEAN": "OCEAN-USD",
+    "OGN": "OGN-USD",
+    "OMNI": "OMNI-USD",
+    "ONDO": "ONDO-USD",
+    "OP": "OP-USD",
+    "ORCA": "ORCA-USD",
+    "ORN": "ORN-USD",
+    "OSMO": "OSMO-USD",
+    "OXT": "OXT-USD",
+    "PAX": "PAX-USD",
+    "PENDLE": "PENDLE-USD",
+    "PERP": "PERP-USD",
+    "PIRATE": "PIRATE-USD",
+    "PLU": "PLU-USD",
+    "PNG": "PNG-USD",
+    "PNUT": "PNUT-USD",
+    "POL": "POL-USD",
+    "POLS": "POLS-USD",
+    "POND": "POND-USD",
+    "POWR": "POWR-USD",
+    "PRCL": "PRCL-USD",
+    "PRIME": "PRIME-USD",
+    "PRO": "PRO-USD",
+    "PRQ": "PRQ-USD",
+    "PUNDIX": "PUNDIX-USD",
+    "PYR": "PYR-USD",
+    "PYTH": "PYTH-USD",
+    "PYUSD": "PYUSD-USD",
+    "QI": "QI-USD",
+    "QNT": "QNT-USD",
+    "RAD": "RAD-USD",
+    "RARE": "RARE-USD",
+    "RARI": "RARI-USD",
+    "RBN": "RBN-USD",
+    "RED": "RED-USD",
+    "RENDER": "RENDER-USD",
+    "REQ": "REQ-USD",
+    "REZ": "REZ-USD",
+    "RLC": "RLC-USD",
+    "RNDR": "RNDR-USD",
+    "RONIN": "RONIN-USD",
+    "ROSE": "ROSE-USD",
+    "RPL": "RPL-USD",
+    "SAFE": "SAFE-USD",
+    "SAND": "SAND-USD",
+    "SD": "SD-USD",
+    "SEAM": "SEAM-USD",
+    "SEI": "SEI-USD",
+    "SHDW": "SHDW-USD",
+    "SHIB": "SHIB-USD",
+    "SHPING": "SHPING-USD",
+    "SKL": "SKL-USD",
+    "SNX": "SNX-USD",
+    "SPA": "SPA-USD",
+    "SPELL": "SPELL-USD",
+    "STG": "STG-USD",
+    "STORJ": "STORJ-USD",
+    "STRK": "STRK-USD",
+    "STX": "STX-USD",
+    "SUKU": "SUKU-USD",
+    "SUPER": "SUPER-USD",
+    "SUSHI": "SUSHI-USD",
+    "SWELL": "SWELL-USD",
+    "SWFTC": "SWFTC-USD",
+    "SYN": "SYN-USD",
+    "SYRUP": "SYRUP-USD",
+    "T": "T-USD",
+    "TIA": "TIA-USD",
+    "TIME": "TIME-USD",
+    "TNSR": "TNSR-USD",
+    "TOSHI": "TOSHI-USD",
+    "TRAC": "TRAC-USD",
+    "TRB": "TRB-USD",
+    "TRU": "TRU-USD",
+    "TURBO": "TURBO-USD",
+    "UMA": "UMA-USD",
+    "UNI": "UNI-USD",
+    "USDT": "USDT-USD",
+    "VARA": "VARA-USD",
+    "VELO": "VELO-USD",
+    "VET": "VET-USD",
+    "VOXEL": "VOXEL-USD",
+    "VTHO": "VTHO-USD",
+    "VVV": "VVV-USD",
+    "WAXL": "WAXL-USD",
+    "WCFG": "WCFG-USD",
+    "WELL": "WELL-USD",
+    "XCN": "XCN-USD",
+    "XLM": "XLM-USD",
+    "XTZ": "XTZ-USD",
+    "XYO": "XYO-USD",
+    "YFI": "YFI-USD",
+    "ZEC": "ZEC-USD",
+    "ZEN": "ZEN-USD",
+    "ZETA": "ZETA-USD",
+    "ZETACHAIN": "ZETACHAIN-USD",
+    "ZK": "ZK-USD",
+    "ZRO": "ZRO-USD",
+    "ZRX": "ZRX-USD"
 }
 
 CRYPTO = list(CRYPTO_SYMBOLS.keys())
@@ -88,6 +358,12 @@ TIMEFRAMES = {
     "1d": TimeFrame.Day,
     "1w": TimeFrame.Week,
     "1m": TimeFrame.Month
+}
+
+COINBASE_GRANULARITIES = {
+    "1d": 86400,
+    "1w": 604800,
+    "1m": 2592000
 }
 
 def load_flip_history(filename):
@@ -110,12 +386,11 @@ def save_flip_history(data, filename):
     with open(filename, "w") as f:
         json.dump(data, f, indent=2)
 
-def get_crypto_ohlc(symbol, interval="1d", limit=365, retries=3, delay=3):
-    url = "https://api.binance.com/api/v3/klines"
+def get_crypto_ohlc(symbol, timeframe="1d", retries=3, delay=3):
+    url = f"https://api.exchange.coinbase.com/products/{symbol}/candles"
     params = {
-        "symbol": symbol,
-        "interval": interval,
-        "limit": limit
+        "granularity": COINBASE_GRANULARITIES[timeframe],
+        "limit": 365
     }
     for attempt in range(retries):
         try:
@@ -124,16 +399,10 @@ def get_crypto_ohlc(symbol, interval="1d", limit=365, retries=3, delay=3):
             raw = response.json()
             if not raw:
                 return None
-            df = pd.DataFrame(raw, columns=[
-                "timestamp", "open", "high", "low", "close", "volume",
-                "close_time", "quote_asset_volume", "number_of_trades",
-                "taker_buy_base_vol", "taker_buy_quote_vol", "ignore"
-            ])
-            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df = pd.DataFrame(raw, columns=["time", "low", "high", "open", "close", "volume"])
+            df["timestamp"] = pd.to_datetime(df["time"], unit="s")
             df.set_index("timestamp", inplace=True)
-            df["high"] = pd.to_numeric(df["high"])
-            df["low"] = pd.to_numeric(df["low"])
-            df["close"] = pd.to_numeric(df["close"])
+            df = df.sort_index()
             return df[["high", "low", "close"]]
         except requests.exceptions.HTTPError as e:
             status = e.response.status_code if e.response else "Unknown"
@@ -172,36 +441,36 @@ def detect_flips(df, display_symbol, existing):
     existing[display_symbol] = all_flips
 
 def run_crypto():
-    filename = "public_flips_crypto.json"
-    flip_data = load_flip_history(filename)
+    for label in TIMEFRAMES.keys():
+        filename = f"public_flips_crypto_{label}.json"
+        flip_data = load_flip_history(filename)
 
-    for display_symbol in CRYPTO:
-        logger.info(f"🔍 Processing {display_symbol}")
-        binance_symbol = CRYPTO_SYMBOLS[display_symbol]
-        df = get_crypto_ohlc(binance_symbol)
+        for display_symbol in CRYPTO:
+            logger.info(f"🔍 Processing {display_symbol} ({label})")
+            cb_symbol = CRYPTO_SYMBOLS[display_symbol]
+            df = get_crypto_ohlc(cb_symbol, timeframe=label)
 
-        if df is None or len(df) < 6:
-            logger.warning(f"{display_symbol} - Not enough data for flip detection.")
-            continue
+            if df is None or len(df) < 6:
+                logger.warning(f"{display_symbol} ({label}) - Not enough data for flip detection.")
+                continue
 
-        df = calculate_supertrend(df)
-        before = len(flip_data.get(display_symbol, []))
-        detect_flips(df, display_symbol, flip_data)
-        after = len(flip_data.get(display_symbol, []))
-        logger.info(f"{display_symbol} - {after - before} new flips detected.")
+            df = calculate_supertrend(df)
+            before = len(flip_data.get(display_symbol, []))
+            detect_flips(df, display_symbol, flip_data)
+            after = len(flip_data.get(display_symbol, []))
+            logger.info(f"{display_symbol} ({label}) - {after - before} new flips detected.")
 
-        time.sleep(3 + random.uniform(0.5, 1.5))
+            time.sleep(1.5 + random.uniform(0.5, 1.0))
 
-    save_flip_history(flip_data, filename)
+        save_flip_history(flip_data, filename)
 
-    # Confirm that the file was written successfully
-    if os.path.exists(filename):
-        size = os.path.getsize(filename)
-        logger.info(f"✅ File '{filename}' saved. Size: {size} bytes.")
-    else:
-        logger.error(f"❌ File '{filename}' not found after save attempt.")
+        if os.path.exists(filename):
+            size = os.path.getsize(filename)
+            logger.info(f"✅ File '{filename}' saved. Size: {size} bytes.")
+        else:
+            logger.error(f"❌ File '{filename}' not found after save attempt.")
 
-    logger.info(f"✅ CRYPTO flip detection complete. {filename} updated.")
+        logger.info(f"✅ CRYPTO flip detection complete for {label.upper()} timeframe.")
 
 def run_stocks():
     for label, tf in TIMEFRAMES.items():
@@ -234,6 +503,31 @@ def run_stocks():
         save_flip_history(flip_data, filename)
         logger.info(f"✅ {label.upper()} stock flip detection complete. {filename} updated.")
 
+def merge_all_flips(output_filename="public_flips_all.json"):
+    all_files = [f for f in glob("public_flips_*.json") if "all" not in f]
+    merged = {}
+
+    for file in all_files:
+        with open(file, "r") as f:
+            data = json.load(f)
+        for symbol, flips in data.items():
+            if symbol not in merged:
+                merged[symbol] = flips
+            else:
+                merged[symbol].extend(flips)
+
+    for symbol, flips in merged.items():
+        unique = {f"{flip['date']}-{flip['type']}": flip for flip in flips}
+        sorted_flips = sorted(unique.values(), key=lambda x: x["date"], reverse=True)
+        merged[symbol] = sorted_flips
+
+    with open(output_filename, "w") as f:
+        json.dump(merged, f, indent=2)
+
+    logger.info(f"✅ Merged all flips into {output_filename}")
+
 if __name__ == "__main__":
     run_stocks()
     run_crypto()
+    merge_all_flips()
+
