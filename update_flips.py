@@ -1,7 +1,7 @@
 import pandas as pd
 import pandas_ta as ta
 import requests
-import random  # added
+import random
 from alpaca.data.historical.stock import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
@@ -141,30 +141,39 @@ def get_bars(symbol, retries=3, delay=3, timeframe=TimeFrame.Day):
     logger.error(f"{symbol} - Failed after {retries} retries.")
     return None
 
-def get_crypto_ohlc(coin_id, days=365):
+def get_crypto_ohlc(coin_id, days=365, retries=3, delay=3):
     url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
     params = {
         "vs_currency": "usd",
         "days": days,
         "interval": "daily"
     }
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        if 'prices' not in data or not data['prices']:
-            logger.warning(f"{coin_id} - 'prices' key missing or empty in response.")
-            return None
-        df = pd.DataFrame(data['prices'], columns=['timestamp', 'price'])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        df.set_index('timestamp', inplace=True)
-        df['close'] = df['price']
-        df['high'] = df['close'] * 1.02
-        df['low'] = df['close'] * 0.98
-        return df[['high', 'low', 'close']]
-    except Exception as e:
-        logger.warning(f"{coin_id} - Failed to fetch CoinGecko data: {e}")
-        return None
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            if 'prices' not in data or not data['prices']:
+                logger.warning(f"{coin_id} - 'prices' key missing or empty in response.")
+                return None
+            df = pd.DataFrame(data['prices'], columns=['timestamp', 'price'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df.set_index('timestamp', inplace=True)
+            df['close'] = df['price']
+            df['high'] = df['close'] * 1.02
+            df['low'] = df['close'] * 0.98
+            return df[['high', 'low', 'close']]
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                logger.warning(f"{coin_id} - Rate limited. Retrying in {delay}s...")
+                time.sleep(delay)
+            else:
+                logger.warning(f"{coin_id} - HTTP error: {e}")
+                break
+        except Exception as e:
+            logger.warning(f"{coin_id} - Unexpected error: {e}")
+            break
+    return None
 
 def calculate_supertrend(df):
     st = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3.0)
@@ -217,7 +226,7 @@ def run_crypto():
             continue
         df = calculate_supertrend(df)
         detect_flips(df, symbol, flip_data)
-        time.sleep(1.5 + random.random())  # <-- added cooldown to avoid rate limit
+        time.sleep(3 + random.uniform(0.5, 1.5))  # updated cooldown
     save_flip_history(flip_data, filename)
     logger.info(f"✅ CRYPTO flip detection complete. {filename} updated.")
 
