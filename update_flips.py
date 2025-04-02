@@ -414,31 +414,54 @@ def get_crypto_ohlc(symbol, timeframe="1d", retries=3, delay=3):
 def get_stock_ohlc(symbol, label, retries=3, delay=1):
     # Try Alpaca for 1d timeframe first
     if label == "1d":
-        for attempt in range(1):  # Only try once with Alpaca to avoid too many retries
-            try:
-                end = datetime.utcnow()
-                start = end - timedelta(days=365)
-                bars = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=symbol, start=start, end=end, timeframe=TimeFrame.Day))
-                df = bars.df
-                if not df.empty:
-                    df = df[df.index.get_level_values(0) == symbol]
-                    df = df.sort_index()
-                    if len(df) >= 6:  # Make sure we have enough data
-                        return df[["high", "low", "close"]]
-                    # If not enough data, fall through to yfinance
-                    logger.warning(f"{symbol} ({label}) - Not enough Alpaca data points: {len(df)}")
-            except Exception as e:
-                logger.warning(f"{symbol} ({label}) - Alpaca error: {e}")
-                # Fall through to yfinance
+        try:
+            end = datetime.utcnow()
+            start = end - timedelta(days=365)
+            bars = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=symbol, start=start, end=end, timeframe=TimeFrame.Day))
+            df = bars.df
+            if not df.empty:
+                df = df[df.index.get_level_values(0) == symbol]
+                df = df.sort_index()
+                if len(df) >= 6:  # Make sure we have enough data
+                    return df[["high", "low", "close"]]
+                logger.warning(f"{symbol} ({label}) - Not enough Alpaca data points: {len(df)}")
+        except Exception as e:
+            logger.warning(f"{symbol} ({label}) - Alpaca error: {e}")
     
     # For all timeframes (if 1d failed with Alpaca, or for 1w/1m)
+    # Use a more robust approach with yfinance
     for attempt in range(retries):
         try:
-            interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
-            df = yf.download(symbol, period="1y", interval=interval, progress=False)
-            if df.empty or df.isnull().all().all():
-                logger.warning(f"{symbol} ({label}) - YFinance returned empty dataframe")
-                time.sleep(delay)
+            # Increase backoff time with each retry
+            backoff_delay = delay * (2 ** attempt)
+            
+            # Try a different approach for each attempt
+            if attempt == 0:
+                # Standard approach
+                interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
+                df = yf.download(symbol, period="1y", interval=interval, progress=False)
+            elif attempt == 1:
+                # Try with different period
+                interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
+                df = yf.download(symbol, period="2y", interval=interval, progress=False)
+            else:
+                # Try with specific date range
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=365)
+                interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
+                df = yf.download(symbol, start=start_date.strftime('%Y-%m-%d'), 
+                                end=end_date.strftime('%Y-%m-%d'), 
+                                interval=interval, progress=False)
+            
+            if df.empty or len(df) < 1:
+                logger.warning(f"{symbol} ({label}) - YFinance returned empty dataframe (attempt {attempt+1})")
+                time.sleep(backoff_delay)
+                continue
+                
+            # Check if we have all required columns
+            if not all(col in df.columns for col in ["High", "Low", "Close"]):
+                logger.warning(f"{symbol} ({label}) - YFinance missing required columns (attempt {attempt+1})")
+                time.sleep(backoff_delay)
                 continue
                 
             df.index.name = "timestamp"
@@ -447,13 +470,13 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
             
             if len(df) < 6:
                 logger.warning(f"{symbol} ({label}) - Not enough YFinance data points: {len(df)}")
-                time.sleep(delay)
+                time.sleep(backoff_delay)
                 continue
                 
             return df
         except Exception as e:
             logger.warning(f"{symbol} ({label}) - YFinance attempt {attempt+1} error: {e}")
-            time.sleep(delay)
+            time.sleep(backoff_delay)
     
     logger.warning(f"{symbol} ({label}) - Failed to get data after all attempts")
     return None
