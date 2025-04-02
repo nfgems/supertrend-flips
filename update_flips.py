@@ -418,7 +418,9 @@ def get_stock_ohlc(symbol, label):
             if df.empty:
                 return None
             df.index.name = "timestamp"
-            return df[["High", "Low", "Close"]].rename(columns={"High": "high", "Low": "low", "Close": "close"})
+            df = df[["High", "Low", "Close"]].rename(columns={"High": "high", "Low": "low", "Close": "close"})
+            df = df.dropna()
+            return df
     except Exception as e:
         logger.warning(f"{symbol} ({label}) - Stock OHLC fetch error: {e}")
         return None
@@ -477,7 +479,7 @@ def run_stocks():
             logger.info(f"{display_symbol} ({label}) - {after - before} new flips.")
 
             if label in ["1w", "1m"]:
-                time.sleep(1.2)
+                time.sleep(1.5 + random.uniform(0.5, 1.0))
             else:
                 time.sleep(0.5)
 
