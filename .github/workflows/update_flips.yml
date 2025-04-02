@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # ⬅️ Full commit history for Git
 
       - name: Set Up Python
         uses: actions/setup-python@v4
@@ -40,4 +42,4 @@ jobs:
           git config --global user.name "nfgems"
           git add public_flips_1d.json public_flips_1w.json public_flips_1m.json public_flips_crypto.json
           git commit -m "Update Supertrend flips data" || echo "No changes to commit"
-          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main
+          git push origin HEAD
