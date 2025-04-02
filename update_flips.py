@@ -1,5 +1,6 @@
 import pandas as pd
 import pandas_ta as ta
+import yfinance as yf
 import requests
 import random
 from alpaca.data.historical.stock import StockHistoricalDataClient
@@ -344,7 +345,6 @@ CRYPTO_SYMBOLS = {
     "ZRO": "ZRO-USD",
     "ZRX": "ZRX-USD"
 }
-
 CRYPTO = list(CRYPTO_SYMBOLS.keys())
 
 TIMEFRAMES = {
@@ -395,30 +395,32 @@ def get_crypto_ohlc(symbol, timeframe="1d", retries=3, delay=3):
             df.set_index("timestamp", inplace=True)
             df = df.sort_index()
             return df[["high", "low", "close"]]
-        except requests.exceptions.HTTPError as e:
-            status = e.response.status_code if e.response else "Unknown"
-            logger.warning(f"{symbol} - HTTP error {status}: {e}")
-            if status == 429:
-                logger.warning(f"{symbol} - Rate limited. Retrying in {delay}s...")
-                time.sleep(delay)
         except Exception as e:
-            logger.warning(f"{symbol} - Unexpected error: {e}")
+            logger.warning(f"{symbol} - Error fetching crypto OHLC: {e}")
             time.sleep(delay)
     return None
 
-def get_stock_ohlc(symbol, timeframe: TimeFrame):
+def get_stock_ohlc(symbol, label):
     try:
-        end = datetime.utcnow()
-        start = end - timedelta(days=365)
-        bars = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=symbol, start=start, end=end, timeframe=timeframe))
-        df = bars.df
-        if df.empty:
-            return None
-        df = df[df.index.get_level_values(0) == symbol]
-        df = df.sort_index()
-        return df[["high", "low", "close"]]
+        if label == "1d":
+            end = datetime.utcnow()
+            start = end - timedelta(days=365)
+            bars = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=symbol, start=start, end=end, timeframe=TimeFrame.Day))
+            df = bars.df
+            if df.empty:
+                return None
+            df = df[df.index.get_level_values(0) == symbol]
+            df = df.sort_index()
+            return df[["high", "low", "close"]]
+        else:
+            interval = "1wk" if label == "1w" else "1mo"
+            df = yf.download(symbol, period="1y", interval=interval, progress=False)
+            if df.empty:
+                return None
+            df.index.name = "timestamp"
+            return df[["High", "Low", "Close"]].rename(columns={"High": "high", "Low": "low", "Close": "close"})
     except Exception as e:
-        logger.warning(f"{symbol} ({timeframe}) - Stock fetch error: {e}")
+        logger.warning(f"{symbol} ({label}) - Stock OHLC fetch error: {e}")
         return None
 
 def calculate_supertrend(df):
@@ -453,14 +455,13 @@ def detect_flips(df, display_symbol, existing):
     existing[display_symbol] = all_flips
 
 def run_stocks():
-    for label, tf in TIMEFRAMES.items():
+    for label in TIMEFRAMES:
         filename = f"public_flips_{label}.json"
         flip_data = load_flip_history(filename)
 
         for display_symbol in SP500:
             logger.info(f"📈 Processing {display_symbol} ({label})")
-            df = get_stock_ohlc(display_symbol, timeframe=tf)
-
+            df = get_stock_ohlc(display_symbol, label)
             if df is None or len(df) < 6:
                 logger.warning(f"{display_symbol} ({label}) - Not enough data.")
                 continue
@@ -475,19 +476,16 @@ def run_stocks():
             after = len(flip_data.get(display_symbol, []))
             logger.info(f"{display_symbol} ({label}) - {after - before} new flips.")
 
-            time.sleep(1 + random.uniform(0.5, 1.0))
+            if label in ["1w", "1m"]:
+                time.sleep(1.2)
+            else:
+                time.sleep(0.5)
 
         save_flip_history(flip_data, filename)
-
-        if os.path.exists(filename):
-            logger.info(f"✅ File '{filename}' saved. Size: {os.path.getsize(filename)} bytes.")
-        else:
-            logger.error(f"❌ File '{filename}' not found after save attempt.")
-
         logger.info(f"✅ STOCKS flip detection complete for {label.upper()} timeframe.")
 
 def run_crypto():
-    for label in TIMEFRAMES.keys():
+    for label in COINBASE_GRANULARITIES.keys():
         filename = f"public_flips_crypto_{label}.json"
         flip_data = load_flip_history(filename)
 
@@ -495,33 +493,22 @@ def run_crypto():
             logger.info(f"🔍 Processing {display_symbol} ({label})")
             cb_symbol = CRYPTO_SYMBOLS[display_symbol]
             df = get_crypto_ohlc(cb_symbol, timeframe=label)
-
             if df is None or len(df) < 6:
                 logger.warning(f"{display_symbol} ({label}) - Not enough data.")
                 continue
-
             df = calculate_supertrend(df)
             if df is None:
                 logger.warning(f"{display_symbol} ({label}) - Supertrend failed.")
                 continue
-
             before = len(flip_data.get(display_symbol, []))
             detect_flips(df, display_symbol, flip_data)
             after = len(flip_data.get(display_symbol, []))
             logger.info(f"{display_symbol} ({label}) - {after - before} new flips.")
-
             time.sleep(1.5 + random.uniform(0.5, 1.0))
 
         save_flip_history(flip_data, filename)
-
-        if os.path.exists(filename):
-            logger.info(f"✅ File '{filename}' saved. Size: {os.path.getsize(filename)} bytes.")
-        else:
-            logger.error(f"❌ File '{filename}' not found after save attempt.")
-
         logger.info(f"✅ CRYPTO flip detection complete for {label.upper()} timeframe.")
 
 if __name__ == "__main__":
     run_stocks()
     run_crypto()
-
