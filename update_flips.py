@@ -174,16 +174,33 @@ def detect_flips(df, display_symbol, existing):
 def run_crypto():
     filename = "public_flips_crypto.json"
     flip_data = load_flip_history(filename)
+
     for display_symbol in CRYPTO:
+        logger.info(f"🔍 Processing {display_symbol}")
         binance_symbol = CRYPTO_SYMBOLS[display_symbol]
         df = get_crypto_ohlc(binance_symbol)
+
         if df is None or len(df) < 6:
             logger.warning(f"{display_symbol} - Not enough data for flip detection.")
             continue
+
         df = calculate_supertrend(df)
+        before = len(flip_data.get(display_symbol, []))
         detect_flips(df, display_symbol, flip_data)
+        after = len(flip_data.get(display_symbol, []))
+        logger.info(f"{display_symbol} - {after - before} new flips detected.")
+
         time.sleep(3 + random.uniform(0.5, 1.5))
+
     save_flip_history(flip_data, filename)
+
+    # Confirm that the file was written successfully
+    if os.path.exists(filename):
+        size = os.path.getsize(filename)
+        logger.info(f"✅ File '{filename}' saved. Size: {size} bytes.")
+    else:
+        logger.error(f"❌ File '{filename}' not found after save attempt.")
+
     logger.info(f"✅ CRYPTO flip detection complete. {filename} updated.")
 
 def run_stocks():
