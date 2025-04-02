@@ -52,6 +52,9 @@ SP500 = [
     "ZBH", "ZBRA", "ZTS"
 ]
 
+# Create a set of tickers to help avoid duplicates
+SP500_SET = set(SP500)
+
 CRYPTO_SYMBOLS = {
     "BTC": "BTC-USD",
     "ETH": "ETH-USD",
@@ -346,7 +349,14 @@ CRYPTO_SYMBOLS = {
     "ZRX": "ZRX-USD"
 }
 
+# Identify and remove duplicate tickers that exist in both lists
 CRYPTO = list(CRYPTO_SYMBOLS.keys())
+CRYPTO_SET = set(CRYPTO)
+
+# Check for duplicates between SP500 and CRYPTO
+DUPLICATE_TICKERS = SP500_SET.intersection(CRYPTO_SET)
+if DUPLICATE_TICKERS:
+    logger.warning(f"Found duplicate tickers in SP500 and CRYPTO: {DUPLICATE_TICKERS}")
 
 TIMEFRAMES = {
     "1d": TimeFrame.Day,
@@ -402,30 +412,50 @@ def get_crypto_ohlc(symbol, timeframe="1d", retries=3, delay=3):
     return None
 
 def get_stock_ohlc(symbol, label, retries=3, delay=1):
-    for attempt in range(retries):
-        try:
-            if label == "1d":
+    # Try Alpaca for 1d timeframe first
+    if label == "1d":
+        for attempt in range(1):  # Only try once with Alpaca to avoid too many retries
+            try:
                 end = datetime.utcnow()
                 start = end - timedelta(days=365)
                 bars = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=symbol, start=start, end=end, timeframe=TimeFrame.Day))
                 df = bars.df
-                if df.empty:
-                    return None
-                df = df[df.index.get_level_values(0) == symbol]
-                df = df.sort_index()
-                return df[["high", "low", "close"]]
-            else:
-                interval = "1wk" if label == "1w" else "1mo"
-                df = yf.download(symbol, period="1y", interval=interval, progress=False)
-                if df.empty or df.isnull().all().all():
-                    return None
-                df.index.name = "timestamp"
-                df = df[["High", "Low", "Close"]].rename(columns={"High": "high", "Low": "low", "Close": "close"})
-                df = df.dropna()
-                return df
+                if not df.empty:
+                    df = df[df.index.get_level_values(0) == symbol]
+                    df = df.sort_index()
+                    if len(df) >= 6:  # Make sure we have enough data
+                        return df[["high", "low", "close"]]
+                    # If not enough data, fall through to yfinance
+                    logger.warning(f"{symbol} ({label}) - Not enough Alpaca data points: {len(df)}")
+            except Exception as e:
+                logger.warning(f"{symbol} ({label}) - Alpaca error: {e}")
+                # Fall through to yfinance
+    
+    # For all timeframes (if 1d failed with Alpaca, or for 1w/1m)
+    for attempt in range(retries):
+        try:
+            interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
+            df = yf.download(symbol, period="1y", interval=interval, progress=False)
+            if df.empty or df.isnull().all().all():
+                logger.warning(f"{symbol} ({label}) - YFinance returned empty dataframe")
+                time.sleep(delay)
+                continue
+                
+            df.index.name = "timestamp"
+            df = df[["High", "Low", "Close"]].rename(columns={"High": "high", "Low": "low", "Close": "close"})
+            df = df.dropna()
+            
+            if len(df) < 6:
+                logger.warning(f"{symbol} ({label}) - Not enough YFinance data points: {len(df)}")
+                time.sleep(delay)
+                continue
+                
+            return df
         except Exception as e:
-            logger.warning(f"{symbol} ({label}) - Attempt {attempt+1} error: {e}")
+            logger.warning(f"{symbol} ({label}) - YFinance attempt {attempt+1} error: {e}")
             time.sleep(delay)
+    
+    logger.warning(f"{symbol} ({label}) - Failed to get data after all attempts")
     return None
 
 def calculate_supertrend(df):
@@ -496,6 +526,11 @@ def run_crypto():
         flip_data = load_flip_history(filename)
 
         for display_symbol in CRYPTO:
+            # Skip if this is a duplicate ticker and we're in the stock list
+            if display_symbol in DUPLICATE_TICKERS:
+                logger.info(f"🔍 Skipping {display_symbol} as it exists in stock list")
+                continue
+                
             logger.info(f"🔍 Processing {display_symbol} ({label})")
             cb_symbol = CRYPTO_SYMBOLS[display_symbol]
             df = get_crypto_ohlc(cb_symbol, timeframe=label)
