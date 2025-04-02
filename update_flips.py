@@ -480,3 +480,7 @@ def run_crypto():
             logger.error(f"❌ File '{filename}' not found after save attempt.")
 
         logger.info(f"✅ CRYPTO flip detection complete for {label.upper()} timeframe.")
+
+if __name__ == "__main__":
+    run_crypto()
+
