@@ -42,6 +42,21 @@
       color: black;
     }
 
+    .tab-selector button[data-tab="crypto"] {
+      background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet);
+      background-size: 400% 400%;
+      animation: rainbow 5s ease infinite;
+      color: white;
+      border: 2px solid white;
+      box-shadow: 0 0 12px rgba(255,255,255,0.6);
+    }
+
+    @keyframes rainbow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
     .filters button, .sub-filters button {
       background-color: #111;
       color: #00ff00;
@@ -189,7 +204,8 @@
   <div class="tab-selector">
     <button data-tab="1d" class="active">Daily 📅</button>
     <button data-tab="1w">Weekly 🗓️</button>
-    <button data-tab="1m">Monthly 📆</button> <!-- ✅ NEW TAB -->
+    <button data-tab="1m">Monthly 📆</button>
+    <button data-tab="crypto">💫 Crypto</button>
   </div>
 
   <div class="search-bar">
@@ -219,7 +235,8 @@
       data: {
         "1d": null,
         "1w": null,
-        "1m": null  // ✅ ADDED FOR MONTHLY
+        "1m": null,
+        "crypto": null
       }
     };
 
@@ -232,11 +249,13 @@
       return Promise.all([
         safeFetch("public_flips_1d.json"),
         safeFetch("public_flips_1w.json"),
-        safeFetch("public_flips_1m.json") // ✅ NEW FILE
-      ]).then(([d1, d2, d3]) => {
+        safeFetch("public_flips_1m.json"),
+        safeFetch("public_flips_crypto_1d.json")
+      ]).then(([d1, d2, d3, dCrypto]) => {
         state.data["1d"] = d1;
         state.data["1w"] = d2;
         state.data["1m"] = d3;
+        state.data["crypto"] = dCrypto;
         renderFlips();
       });
     }
