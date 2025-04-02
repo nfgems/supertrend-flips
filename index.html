@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -58,9 +58,9 @@
     }
 
     .tab-selector button[data-tab="crypto"].active {
-      background-color: #00ff00; /* Solid color for active state */
+      background-color: #00ff00;
       color: black;
-      box-shadow: 0 0 15px rgba(0, 255, 0, 0.7); /* Brighter glow on active */
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
     }
 
     .filters button, .sub-filters button {
@@ -148,6 +148,14 @@
       color: white;
       font-weight: bold;
       font-size: 1.1rem;
+    }
+
+    .category-label {
+      font-size: 0.7rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      background-color: #222;
+      color: #aaa;
     }
 
     .flipped {
@@ -267,53 +275,63 @@
     }
 
     function renderFlips() {
-      const data = state.data[state.activeTab];
       const container = document.getElementById("flipContainer");
       const subFilters = document.getElementById("subFilters");
       container.innerHTML = "";
 
-      if (!data || Object.keys(data).length === 0) {
-        container.innerHTML = `<div class="no-data">No data available for this view yet.</div>`;
-        return;
+      let entries = [];
+
+      for (let tab in state.data) {
+        const tabData = state.data[tab];
+        if (!tabData) continue;
+
+        for (let [symbol, flips] of Object.entries(tabData)) {
+          if (!Array.isArray(flips) || flips.length === 0) continue;
+          if (state.searchQuery && !symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) continue;
+
+          if (state.activeFilter === "green" || state.activeFilter === "red") {
+            if (flips[0].type !== state.activeFilter) continue;
+          }
+
+          entries.push({ symbol, flips, category: tab === "crypto" ? "CRYPTO" : "STOCK" });
+        }
       }
 
-      let entries = Object.entries(data).filter(([symbol, flips]) => {
-        if (!Array.isArray(flips) || flips.length === 0) return false;
-        if (!symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
-
-        if (state.activeFilter === "green" || state.activeFilter === "red") {
-          return flips[0].type === state.activeFilter;
-        }
-
-        return true;
-      });
-
       if (state.activeFilter === "recent") {
-        entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+        entries.sort((a, b) => new Date(b.flips[0].date) - new Date(a.flips[0].date));
       } else if ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent") {
-        entries.sort((a, b) => new Date(b[1][0].date) - new Date(a[1][0].date));
+        entries.sort((a, b) => new Date(b.flips[0].date) - new Date(a.flips[0].date));
       } else {
-        entries.sort((a, b) => a[0].localeCompare(b[0]));
+        entries.sort((a, b) => a.symbol.localeCompare(b.symbol));
+      }
+
+      if (!state.searchQuery) {
+        entries = entries.filter(entry => {
+          const tabData = state.data[state.activeTab];
+          return tabData && tabData[entry.symbol];
+        });
       }
 
       if (entries.length === 0) {
-        container.innerHTML = `<div class="no-data">No matches for selected filters.</div>`;
+        container.innerHTML = <div class="no-data">No matches for selected filters or search.</div>;
         return;
       }
 
-      entries.forEach(([symbol, flips]) => {
+      entries.forEach(({ symbol, flips, category }) => {
         const latest = flips[0];
         const emoji = latest.type === "green" ? "🐂" : "🐻";
         const colorClass = latest.type === "green" ? "green" : "red";
+        const label = state.searchQuery ? <span class="category-label">${category}</span> : "";
 
         const box = document.createElement("div");
-        box.className = `flip ${latest.type}`;
+        box.className = flip ${latest.type};
 
-        box.innerHTML = `
+        box.innerHTML = 
           <div class="flip-header">
             <div class="flip-left">
               <span class="emoji">${emoji}</span>
               <span class="symbol">${symbol}</span>
+              ${label}
               <span class="flipped">flipped</span>
               <span class="${colorClass}">${latest.type.toUpperCase()}</span>
               ${state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
@@ -321,7 +339,7 @@
             <div class="date ${colorClass}">${latest.date}</div>
           </div>
           <div class="history-container"></div>
-        `;
+        ;
 
         if (state.activeFilter === "all") {
           const toggle = box.querySelector(".history-toggle");
@@ -331,12 +349,12 @@
             if (historyBox.style.display === "block") {
               historyBox.style.display = "none";
             } else {
-              historyBox.innerHTML = flips.map(f => `
+              historyBox.innerHTML = flips.map(f => 
                 <div class="history-entry">
                   <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
                   <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
                 </div>
-              `).join("");
+              ).join("");
               historyBox.style.display = "block";
             }
           });
