@@ -451,68 +451,78 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
         
-        response = requests.get(url, params=params, headers=headers)
-        data = response.json()
-        
-        if "chart" in data and "result" in data["chart"] and data["chart"]["result"]:
-            result = data["chart"]["result"][0]
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
             
-            # Extract timestamp and price data
-            timestamps = result["timestamp"]
-            quote = result["indicators"]["quote"][0]
-            
-            if not all(key in quote for key in ["high", "low", "close"]):
-                logger.warning(f"{symbol} ({label}) - Yahoo API missing required data")
-                return None
+            if "chart" in data and "result" in data["chart"] and data["chart"]["result"]:
+                result = data["chart"]["result"][0]
                 
-            # Create dataframe
-            df = pd.DataFrame({
-                "timestamp": pd.to_datetime(timestamps, unit="s"),
-                "high": quote["high"],
-                "low": quote["low"],
-                "close": quote["close"]
-            })
-            
-            # Clean data
-            df = df.dropna()
-            df.set_index("timestamp", inplace=True)
-            
-            if len(df) >= 6:
-                return df
+                # Extract timestamp and price data
+                if "timestamp" not in result or "indicators" not in result or "quote" not in result["indicators"] or not result["indicators"]["quote"]:
+                    logger.warning(f"{symbol} ({label}) - Yahoo API missing required data structure")
+                else:
+                    timestamps = result["timestamp"]
+                    quote = result["indicators"]["quote"][0]
+                    
+                    # Check for all required keys
+                    if not all(key in quote for key in ["high", "low", "close"]):
+                        logger.warning(f"{symbol} ({label}) - Yahoo API missing required price data")
+                    else:
+                        # Create dataframe
+                        df = pd.DataFrame({
+                            "timestamp": pd.to_datetime(timestamps, unit="s"),
+                            "high": quote["high"],
+                            "low": quote["low"],
+                            "close": quote["close"]
+                        })
+                        
+                        # Clean data
+                        df = df.dropna()
+                        df.set_index("timestamp", inplace=True)
+                        
+                        if len(df) >= 6:
+                            return df
+                        else:
+                            logger.warning(f"{symbol} ({label}) - Not enough data points from Yahoo API: {len(df)}")
             else:
-                logger.warning(f"{symbol} ({label}) - Not enough data points from Yahoo API: {len(df)}")
+                logger.warning(f"{symbol} ({label}) - No results returned from Yahoo API")
         else:
-            logger.warning(f"{symbol} ({label}) - No data returned from Yahoo API")
+            logger.warning(f"{symbol} ({label}) - Yahoo API HTTP error: {response.status_code}")
     
     except Exception as e:
         logger.warning(f"{symbol} ({label}) - Yahoo API error: {e}")
     
-    # Fall back to yfinance with multiple retries as last resort
+    # Fall back to yfinance as last resort
     for attempt in range(retries):
         try:
             # Increase backoff time with each retry
             backoff_delay = delay * (2 ** attempt)
             
-            # Add a custom user agent
-            yf.pdr_override()
+            # Define headers for the request
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
             
             # Try a different approach for each attempt
             if attempt == 0:
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
-                df = yf.download(symbol, period="1y", interval=interval, progress=False, 
-                                 headers={"User-Agent": "Mozilla/5.0"})
+                df = yf.download(symbol, period="1y", interval=interval, progress=False, headers=headers)
             elif attempt == 1:
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
-                df = yf.download(symbol, period="2y", interval=interval, progress=False,
-                                 headers={"User-Agent": "Mozilla/5.0"})
+                df = yf.download(symbol, period="2y", interval=interval, progress=False, headers=headers)
             else:
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=365)
                 interval = "1d" if label == "1d" else "1wk" if label == "1w" else "1mo"
-                df = yf.download(symbol, start=start_date.strftime('%Y-%m-%d'), 
-                                end=end_date.strftime('%Y-%m-%d'), 
-                                interval=interval, progress=False,
-                                headers={"User-Agent": "Mozilla/5.0"})
+                df = yf.download(
+                    symbol, 
+                    start=start_date.strftime('%Y-%m-%d'), 
+                    end=end_date.strftime('%Y-%m-%d'), 
+                    interval=interval, 
+                    progress=False,
+                    headers=headers
+                )
             
             if df.empty or len(df) < 1:
                 logger.warning(f"{symbol} ({label}) - YFinance returned empty dataframe (attempt {attempt+1})")
