@@ -345,6 +345,7 @@ CRYPTO_SYMBOLS = {
     "ZRO": "ZRO-USD",
     "ZRX": "ZRX-USD"
 }
+
 CRYPTO = list(CRYPTO_SYMBOLS.keys())
 
 TIMEFRAMES = {
@@ -400,30 +401,32 @@ def get_crypto_ohlc(symbol, timeframe="1d", retries=3, delay=3):
             time.sleep(delay)
     return None
 
-def get_stock_ohlc(symbol, label):
-    try:
-        if label == "1d":
-            end = datetime.utcnow()
-            start = end - timedelta(days=365)
-            bars = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=symbol, start=start, end=end, timeframe=TimeFrame.Day))
-            df = bars.df
-            if df.empty:
-                return None
-            df = df[df.index.get_level_values(0) == symbol]
-            df = df.sort_index()
-            return df[["high", "low", "close"]]
-        else:
-            interval = "1wk" if label == "1w" else "1mo"
-            df = yf.download(symbol, period="1y", interval=interval, progress=False)
-            if df.empty:
-                return None
-            df.index.name = "timestamp"
-            df = df[["High", "Low", "Close"]].rename(columns={"High": "high", "Low": "low", "Close": "close"})
-            df = df.dropna()
-            return df
-    except Exception as e:
-        logger.warning(f"{symbol} ({label}) - Stock OHLC fetch error: {e}")
-        return None
+def get_stock_ohlc(symbol, label, retries=3, delay=1):
+    for attempt in range(retries):
+        try:
+            if label == "1d":
+                end = datetime.utcnow()
+                start = end - timedelta(days=365)
+                bars = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=symbol, start=start, end=end, timeframe=TimeFrame.Day))
+                df = bars.df
+                if df.empty:
+                    return None
+                df = df[df.index.get_level_values(0) == symbol]
+                df = df.sort_index()
+                return df[["high", "low", "close"]]
+            else:
+                interval = "1wk" if label == "1w" else "1mo"
+                df = yf.download(symbol, period="1y", interval=interval, progress=False)
+                if df.empty or df.isnull().all().all():
+                    return None
+                df.index.name = "timestamp"
+                df = df[["High", "Low", "Close"]].rename(columns={"High": "high", "Low": "low", "Close": "close"})
+                df = df.dropna()
+                return df
+        except Exception as e:
+            logger.warning(f"{symbol} ({label}) - Attempt {attempt+1} error: {e}")
+            time.sleep(delay)
+    return None
 
 def calculate_supertrend(df):
     try:
@@ -440,21 +443,22 @@ def detect_flips(df, display_symbol, existing):
         logger.warning(f"{display_symbol} missing Supertrend column. Skipping.")
         return
     flips = existing.get(display_symbol, [])
-    recorded_dates = {entry["date"] for entry in flips}
+    recorded_dates = set((entry["date"], entry["type"]) for entry in flips)
     new_flips = []
     for i in range(1, len(df)):
         prev = df.iloc[i - 1]
         curr = df.iloc[i]
         date_str = str(curr.name.date())
-        if date_str in recorded_dates:
+        if (date_str, "green") in recorded_dates or (date_str, "red") in recorded_dates:
             continue
         if prev['SUPERT_10_3.0'] > prev['close'] and curr['SUPERT_10_3.0'] < curr['close']:
             new_flips.append({"date": date_str, "type": "green"})
         elif prev['SUPERT_10_3.0'] < prev['close'] and curr['SUPERT_10_3.0'] > curr['close']:
             new_flips.append({"date": date_str, "type": "red"})
-    all_flips = flips + new_flips
-    all_flips.sort(key=lambda x: x["date"], reverse=True)
-    existing[display_symbol] = all_flips
+    if new_flips:
+        all_flips = flips + new_flips
+        all_flips.sort(key=lambda x: x["date"], reverse=True)
+        existing[display_symbol] = all_flips
 
 def run_stocks():
     for label in TIMEFRAMES:
