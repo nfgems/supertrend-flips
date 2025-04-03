@@ -41,7 +41,7 @@ SP500 = [
     "K", "KDP", "KEY", "KEYS", "KHC", "KIM", "KKR", "KLAC", "KMB", "KMI", "KMX", "KO", "KR", "KTOS", "KVUE",
     "L", "LC", "LDOS", "LEN", "LH", "LHX", "LI", "LII", "LIN", "LKQ", "LLY", "LMND", "LMT", "LNT", "LOW", "LRCX", "LULU", "LUV", "LVS", "LW", "LZ", "LYB", "LYV",
     "MA", "MAA", "MAR", "MARA", "MAS", "MCD", "MCHP", "MCK", "MCO", "MDLZ", "MDT", "META", "MET", "MGM", "MHK", "MKC", "MKL", "MKTX", "MLM", "MMM", "MNST", "MO", "MOH", "MOS", "MPC", "MPWR", "MRK", "MRNA", "MSTR", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTCH", "MTDR", "MTD", "MU", "NBIX", "NCLH", "NDAQ", "NDSN", "NEE", "NEM", "NFLX", "NI", "NIO", "NKE", "NOC", "NOW", "NRG", "NSC", "NTAP", "NTRS", "NU", "NUE", "NVDA", "NVR", "NWS", "NWSA", "NXPI",
-    "O", "ODFL", "OKE", "OMC", "ON", "ONON", "OPEN", "ORCL", "ORCL", "ORI", "ORLY", "OTIS", "OXY",
+    "O", "ODFL", "OKE", "OMC", "ON", "ONON", "OPEN", "BLK", "ORCL", "ORI", "ORLY", "OTIS", "OXY",
     "PANW", "PARA", "PARR", "PATH", "PAYC", "PAYX", "PB", "PCAR", "PCG", "PEG", "PEP", "PFE", "PFG", "PG", "PGR", "PH", "PHM", "PKG", "PLD", "PLTR", "PM", "PNC", "PNR", "PNW", "PODD", "POOL", "PPG", "PPL", "PRCH", "PRU", "PSA", "PSX", "PTC", "PWR", "PYPL",
     "QCOM", "QS",
     "RBLX", "RCL", "REG", "REGN", "RF", "RIVN", "RJF", "RL", "RMD", "ROK", "ROL", "ROP", "ROKU", "ROST", "RNR", "RSG", "RTX", "RVTY",
@@ -1325,7 +1325,7 @@ def get_kucoin_ohlc(symbol, timeframe="1d", retries=3, delay=3):
             now = int(time.time())
             one_year_ago = now - 86400 * 365
 
-            candles = kucoin_client.get_kline(symbol, '1day', one_year_ago, now)  # ✅ Correct method
+            candles = kucoin_client.get_kline_data(symbol, '1day', one_year_ago, now)
             if not candles or not isinstance(candles, list):
                 return None
 
