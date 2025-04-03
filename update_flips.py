@@ -1346,6 +1346,30 @@ def get_kucoin_ohlc(symbol, timeframe="1d", retries=3, delay=3):
             time.sleep(delay)
     return None
 
+def get_kucoin_aggregated_ohlc(symbol, timeframe="1w", retries=3, delay=3):
+    df_daily = get_kucoin_ohlc(symbol, timeframe="1d", retries=retries, delay=delay)
+    if df_daily is None or df_daily.empty:
+        return None
+
+    if timeframe == "1w":
+        rule = "W"  # Weekly
+    elif timeframe == "1m":
+        rule = "M"  # Monthly
+    else:
+        return None
+
+    try:
+        df_agg = pd.DataFrame()
+        df_agg["high"] = df_daily["high"].resample(rule).max()
+        df_agg["low"] = df_daily["low"].resample(rule).min()
+        df_agg["close"] = df_daily["close"].resample(rule).last()
+        df_agg.dropna(inplace=True)
+        return df_agg
+    except Exception as e:
+        logger.warning(f"{symbol} ({timeframe}) - KuCoin aggregation failed: {e}")
+        return None
+
+
 def calculate_supertrend(df, timeframe):
     try:
         # Use different parameters based on timeframe
@@ -1435,13 +1459,15 @@ def run_stocks():
         save_flip_history(flip_data, filename)
         logger.info(f"✅ STOCKS flip detection complete for {label.upper()} timeframe.")
 
-def run_crypto():
-    for label in COINBASE_GRANULARITIES.keys():
+def run_crypto(timeframes=None):
+    if timeframes is None:
+        timeframes = list(COINBASE_GRANULARITIES.keys())  # Default to all: ["1d"]
+
+    for label in timeframes:
         filename = f"public_flips_crypto_{label}.json"
         flip_data = load_flip_history(filename)
 
         for display_symbol in CRYPTO:
-            # Skip if this is a duplicate ticker and we're in the stock list
             if display_symbol in DUPLICATE_TICKERS:
                 logger.info(f"🔍 Skipping {display_symbol} as it exists in stock list")
                 continue
@@ -1452,10 +1478,13 @@ def run_crypto():
 
             if df is not None:
                 logger.info(f"{display_symbol} ({label}) - ✅ Fetched from Coinbase")
-            elif label == "1d" and display_symbol in kucoin_tokens:
+            elif display_symbol in kucoin_tokens:
                 logger.info(f"{display_symbol} ({label}) - ❗ Fallback to KuCoin")
                 kucoin_symbol = f"{display_symbol}-USDT"
-                df = get_kucoin_ohlc(kucoin_symbol, timeframe=label)
+                if label == "1d":
+                    df = get_kucoin_ohlc(kucoin_symbol, timeframe=label)
+                else:
+                    df = get_kucoin_aggregated_ohlc(kucoin_symbol, label)
 
             if df is None or len(df) < 6:
                 logger.warning(f"{display_symbol} ({label}) - Not enough data.")
@@ -1475,17 +1504,29 @@ def run_crypto():
         save_flip_history(flip_data, filename)
         logger.info(f"✅ CRYPTO flip detection complete for {label.upper()} timeframe.")
 
+
 # 🔀 CLI-controlled entry point
 if __name__ == "__main__":
-    import sys
+    import argparse
 
-    if "--stocks" in sys.argv:
-        logger.info("📊 Running STOCKS flip update only")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--stocks", action="store_true", help="Run stock flips only")
+    parser.add_argument("--crypto", action="store_true", help="Run crypto flips only")
+    parser.add_argument("--timeframe", choices=["1d", "1w", "1m"], help="Specific timeframe to run (used with --crypto)")
+    args = parser.parse_args()
+
+    if args.stocks:
+        logger.info("📈 Running STOCK flip update only")
         run_stocks()
-    elif "--crypto" in sys.argv:
+
+    elif args.crypto:
         logger.info("🪙 Running CRYPTO flip update only")
-        run_crypto()
+        if args.timeframe:
+            run_crypto(timeframes=[args.timeframe])
+        else:
+            run_crypto()
+
     else:
-        logger.info("⚙️ Running BOTH stocks and crypto updates")
+        logger.info("⚙️ Running FULL update (stocks + crypto)")
         run_stocks()
         run_crypto()
