@@ -1324,8 +1324,8 @@ def get_kucoin_ohlc(symbol, timeframe="1d", retries=3, delay=3):
         try:
             now = int(time.time())
             one_year_ago = now - 86400 * 365
-            candles = kucoin_client.get_kline(symbol, '1day', one_year_ago, now)
-            if not candles:
+            candles = kucoin_client.get_market_kline(symbol, '1day', one_year_ago, now)  # ✅ updated method
+            if not candles or not isinstance(candles, list):
                 return None
 
             df = pd.DataFrame(candles, columns=["time", "open", "close", "high", "low", "volume", "turnover"])
