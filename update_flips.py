@@ -1096,10 +1096,6 @@ TIMEFRAMES = {
     "1m": TimeFrame.Month
 }
 
-COINBASE_GRANULARITIES = {
-    "1d": 86400
-}
-
 def load_flip_history(filename):
     if not os.path.exists(filename):
         return {}
@@ -1119,29 +1115,6 @@ def load_flip_history(filename):
 def save_flip_history(data, filename):
     with open(filename, "w") as f:
         json.dump(data, f, indent=2)
-
-def get_crypto_ohlc(symbol, timeframe="1d", retries=3, delay=3):
-    url = f"https://api.exchange.coinbase.com/products/{symbol}/candles"
-    params = {
-        "granularity": COINBASE_GRANULARITIES[timeframe],
-        "limit": 365
-    }
-    for attempt in range(retries):
-        try:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            raw = response.json()
-            if not raw:
-                return None
-            df = pd.DataFrame(raw, columns=["time", "low", "high", "open", "close", "volume"])
-            df["timestamp"] = pd.to_datetime(df["time"], unit="s")
-            df.set_index("timestamp", inplace=True)
-            df = df.sort_index()
-            return df[["high", "low", "close"]]
-        except Exception as e:
-            logger.warning(f"{symbol} - Error fetching crypto OHLC: {e}")
-            time.sleep(delay)
-    return None
 
 def get_stock_ohlc(symbol, label, retries=3, delay=1):
     # Try Alpaca for 1d timeframe first
@@ -1317,7 +1290,11 @@ def get_stock_ohlc(symbol, label, retries=3, delay=1):
     return None
 
 def get_kucoin_ohlc(symbol, timeframe="1d", retries=3, delay=3):
+    """
+    Fetch daily OHLC data from KuCoin
+    """
     if timeframe != "1d":
+        logger.warning(f"{symbol} - KuCoin API only supports daily candles directly")
         return None  # KuCoin free API doesn't support weekly/monthly natively
 
     for attempt in range(retries):
@@ -1327,43 +1304,62 @@ def get_kucoin_ohlc(symbol, timeframe="1d", retries=3, delay=3):
 
             candles = kucoin_client.get_kline_data(symbol, '1day', one_year_ago, now)
             if not candles or not isinstance(candles, list):
+                logger.warning(f"{symbol} - No candles returned from KuCoin")
                 return None
 
             df = pd.DataFrame(candles, columns=["time", "open", "close", "high", "low", "volume", "turnover"])
 
-            # ✅ Convert all numeric fields to float to avoid Supertrend errors
+            # Convert all numeric fields to float to avoid Supertrend errors
             for col in ["open", "close", "high", "low", "volume", "turnover"]:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-            # ✅ Fix for FutureWarning: ensure time is numeric
+            # Fix for FutureWarning: ensure time is numeric
             df["timestamp"] = pd.to_datetime(pd.to_numeric(df["time"]), unit="s")
             df.set_index("timestamp", inplace=True)
             df = df.sort_index()
 
             return df[["high", "low", "close"]]
         except Exception as e:
-            logger.warning(f"{symbol} - KuCoin fetch failed: {e}")
-            time.sleep(delay)
+            logger.warning(f"{symbol} - KuCoin fetch attempt {attempt+1} failed: {e}")
+            time.sleep(delay * (attempt + 1))  # Exponential backoff
+    
     return None
 
 def get_kucoin_aggregated_ohlc(symbol, timeframe="1w", retries=3, delay=3):
+    """
+    Aggregate daily data from KuCoin to weekly or monthly timeframes
+    """
     df_daily = get_kucoin_ohlc(symbol, timeframe="1d", retries=retries, delay=delay)
     if df_daily is None or df_daily.empty:
-        return None
-
-    if timeframe == "1w":
-        rule = "W"  # Weekly
-    elif timeframe == "1m":
-        rule = "M"  # Monthly
-    else:
+        logger.warning(f"{symbol} ({timeframe}) - No daily data available for aggregation")
         return None
 
     try:
+        if timeframe == "1w":
+            rule = "W"  # Weekly aggregation
+            logger.info(f"{symbol} - Aggregating daily data to weekly")
+        elif timeframe == "1m":
+            rule = "M"  # Monthly aggregation
+            logger.info(f"{symbol} - Aggregating daily data to monthly")
+        else:
+            logger.warning(f"{symbol} - Unsupported timeframe for aggregation: {timeframe}")
+            return None
+
+        # Aggregate the daily data
         df_agg = pd.DataFrame()
         df_agg["high"] = df_daily["high"].resample(rule).max()
         df_agg["low"] = df_daily["low"].resample(rule).min()
         df_agg["close"] = df_daily["close"].resample(rule).last()
+        
+        # Remove NaN values
         df_agg.dropna(inplace=True)
+        
+        # Ensure we have enough data
+        if len(df_agg) < 6:
+            logger.warning(f"{symbol} ({timeframe}) - Not enough aggregated data points: {len(df_agg)}")
+            return None
+            
+        logger.info(f"{symbol} ({timeframe}) - Successfully aggregated {len(df_agg)} data points")
         return df_agg
     except Exception as e:
         logger.warning(f"{symbol} ({timeframe}) - KuCoin aggregation failed: {e}")
@@ -1461,7 +1457,7 @@ def run_stocks():
 
 def run_crypto(timeframes=None):
     if timeframes is None:
-        timeframes = list(COINBASE_GRANULARITIES.keys())  # Default to all: ["1d"]
+        timeframes = ["1d", "1w", "1m"]  # Support all timeframes
 
     for label in timeframes:
         filename = f"public_flips_crypto_{label}.json"
@@ -1473,18 +1469,18 @@ def run_crypto(timeframes=None):
                 continue
 
             logger.info(f"🔍 Processing {display_symbol} ({label})")
-            cb_symbol = CRYPTO_SYMBOLS.get(display_symbol)
-            df = get_crypto_ohlc(cb_symbol, timeframe=label)
-
-            if df is not None:
-                logger.info(f"{display_symbol} ({label}) - ✅ Fetched from Coinbase")
-            elif display_symbol in kucoin_tokens:
-                logger.info(f"{display_symbol} ({label}) - ❗ Fallback to KuCoin")
+            
+            if display_symbol in kucoin_tokens:
+                logger.info(f"{display_symbol} ({label}) - 🪙 Using KuCoin")
                 kucoin_symbol = f"{display_symbol}-USDT"
+                
                 if label == "1d":
                     df = get_kucoin_ohlc(kucoin_symbol, timeframe=label)
                 else:
-                    df = get_kucoin_aggregated_ohlc(kucoin_symbol, label)
+                    df = get_kucoin_aggregated_ohlc(kucoin_symbol, timeframe=label)
+            else:
+                logger.warning(f"{display_symbol} ({label}) - ❌ Not available on KuCoin")
+                continue
 
             if df is None or len(df) < 6:
                 logger.warning(f"{display_symbol} ({label}) - Not enough data.")
@@ -1492,7 +1488,7 @@ def run_crypto(timeframes=None):
 
             df = calculate_supertrend(df, label)
             if df is None:
-                logger.warning(f"{display_symbol} ({label}) - Supertrend failed.")
+                logger.warning(f"{display_symbol} ({label}) - Supertrend calculation failed.")
                 continue
 
             before = len(flip_data.get(display_symbol, []))
