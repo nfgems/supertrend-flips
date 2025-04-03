@@ -1330,9 +1330,16 @@ def get_kucoin_ohlc(symbol, timeframe="1d", retries=3, delay=3):
                 return None
 
             df = pd.DataFrame(candles, columns=["time", "open", "close", "high", "low", "volume", "turnover"])
-            df["timestamp"] = pd.to_datetime(df["time"], unit="s")
+
+            # ✅ Convert all numeric fields to float to avoid Supertrend errors
+            for col in ["open", "close", "high", "low", "volume", "turnover"]:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
+            # ✅ Fix for FutureWarning: ensure time is numeric
+            df["timestamp"] = pd.to_datetime(pd.to_numeric(df["time"]), unit="s")
             df.set_index("timestamp", inplace=True)
             df = df.sort_index()
+
             return df[["high", "low", "close"]]
         except Exception as e:
             logger.warning(f"{symbol} - KuCoin fetch failed: {e}")
