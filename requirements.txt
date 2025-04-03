@@ -3,5 +3,4 @@ numpy==1.24.4
 pandas-ta==0.3.14b0
 alpaca-py==0.18.0
 yfinance==0.2.37
-python-kucoin==0.2.2
-
+python-kucoin==2.2.0
