@@ -42,7 +42,8 @@
       color: black;
     }
 
-    .tab-selector button[data-tab="crypto"] {
+    .tab-selector button[data-tab="crypto-1d"],
+    .tab-selector button[data-tab="crypto-1w"] {
       background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet);
       background-size: 400% 400%;
       animation: rainbow 5s ease infinite;
@@ -57,7 +58,8 @@
       100% { background-position: 0% 50%; }
     }
 
-    .tab-selector button[data-tab="crypto"].active {
+    .tab-selector button[data-tab="crypto-1d"].active,
+    .tab-selector button[data-tab="crypto-1w"].active {
       background-color: #00ff00;
       color: black;
       box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
@@ -214,14 +216,13 @@
 </head>
 <body>
   <h1>📈 Supertrend Flip Tracker</h1>
-
   <div class="tab-selector">
-    <button onclick="switchTab('1d')" class="active">1D</button>
-    <button onclick="switchTab('1w')">1W</button>
-    <button onclick="switchTab('1m')">1M</button>
+    <button onclick="switchTab('1d')" class="active">1D STOCK</button>
+    <button onclick="switchTab('1w')">1W STOCK</button>
+    <button onclick="switchTab('1m')">1M STOCK</button>
     <button onclick="switchTab('crypto-1d')" data-tab="crypto-1d">Crypto 1D</button>
     <button onclick="switchTab('crypto-1w')" data-tab="crypto-1w">Crypto 1W</button>
-    <button onclick="switchTab('crypto-1m')" data-tab="crypto-1m">Crypto 1M</button>
+    <!-- Removed Crypto 1M button -->
   </div>
 
   <div class="search-bar">
@@ -252,56 +253,67 @@
         "1d": null,
         "1w": null,
         "1m": null,
-        "crypto": null
+        "crypto-1d": null,
+        "crypto-1w": null
       }
     };
+
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      document.querySelectorAll(".tab-selector button").forEach(b => b.classList.remove("active"));
+      document.querySelector(`.tab-selector button[onclick="switchTab('${tabId}')"]`)?.classList.add("active");
+      state.searchQuery = "";
+      document.getElementById("searchInput").value = "";
+      renderFlips();
+    }
 
     function fetchAllData() {
       const safeFetch = (url) =>
         fetch(url)
           .then(res => res.ok ? res.json() : {})
           .catch(() => ({}));
-
+      
       return Promise.all([
         safeFetch("public_flips_1d.json"),
         safeFetch("public_flips_1w.json"),
         safeFetch("public_flips_1m.json"),
-        safeFetch("public_flips_crypto_1d.json")
-      ]).then(([d1, d2, d3, dCrypto]) => {
+        safeFetch("public_flips_crypto_1d.json"),
+        safeFetch("public_flips_crypto_1w.json")
+      ]).then(([d1, d2, d3, dCrypto1d, dCrypto1w]) => {
         state.data["1d"] = d1;
         state.data["1w"] = d2;
         state.data["1m"] = d3;
-        state.data["crypto"] = dCrypto;
+        state.data["crypto-1d"] = dCrypto1d;
+        state.data["crypto-1w"] = dCrypto1w;
         renderFlips();
       });
     }
 
-  function findSearchMatches() {
-    const query = state.searchQuery.toLowerCase().trim();
-    if (!query) return [];
-
-    const matches = [];
-    const timeframes = ["1d", "1w", "1m", "crypto"];
-
-    timeframes.forEach(timeframe => {
-      const timeframeData = state.data[timeframe];
-      if (!timeframeData) return;
-
-      Object.entries(timeframeData).forEach(([symbol, flips]) => {
-        if (symbol.toLowerCase().includes(query)) {
-          matches.push({
-            symbol,
-            timeframe,
-            flips,
-            category: timeframe === "crypto" ? "CRYPTO" : "STOCK"
-          });
-        }
+    function findSearchMatches() {
+      const query = state.searchQuery.toLowerCase().trim();
+      if (!query) return [];
+      
+      const matches = [];
+      const timeframes = ["1d", "1w", "1m", "crypto-1d", "crypto-1w"];
+      
+      timeframes.forEach(timeframe => {
+        const timeframeData = state.data[timeframe];
+        if (!timeframeData) return;
+        
+        Object.entries(timeframeData).forEach(([symbol, flips]) => {
+          if (symbol.toLowerCase().includes(query)) {
+            matches.push({
+              symbol,
+              timeframe,
+              flips,
+              category: timeframe.includes("crypto") ? "CRYPTO" : "STOCK"
+            });
+          }
+        });
       });
-    });
-
-    return matches;
-  }
-
+      
+      return matches;
+    }
 
     function renderSearchResults(matches) {
       const container = document.getElementById("flipContainer");
@@ -334,14 +346,9 @@
         `;
 
         box.addEventListener('click', () => {
-          const tabButton = document.querySelector(`.tab-selector button[data-tab="${timeframe}"]`);
-          if (tabButton) {
-            document.querySelectorAll(".tab-selector button").forEach(b => b.classList.remove("active"));
-            tabButton.classList.add("active");
-            state.activeTab = timeframe;
-            state.searchQuery = symbol;
-            renderFlips();
-          }
+          switchTab(timeframe);
+          state.searchQuery = symbol;
+          renderFlips();
         });
 
         container.appendChild(box);
@@ -361,7 +368,7 @@
 
       let entries = [];
       const processedSymbols = new Set();
-      const currentDataSource = state.activeTab === "crypto" ? state.data["crypto"] : state.data[state.activeTab];
+      const currentDataSource = state.data[state.activeTab];
 
       if (!currentDataSource) {
         container.innerHTML = `<div class="no-data">No data available for this timeframe.</div>`;
@@ -382,7 +389,7 @@
         entries.push({ 
           symbol, 
           flips, 
-          category: state.activeTab === "crypto" ? "CRYPTO" : "STOCK",
+          category: state.activeTab.includes("crypto") ? "CRYPTO" : "STOCK",
           latestDate: new Date(latest.date)
         });
       }
@@ -416,14 +423,14 @@
               ${label}
               <span class="flipped">flipped</span>
               <span class="${colorClass}">${latest.type.toUpperCase()}</span>
-              ${state.activeTab !== "crypto" && state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
+              ${!state.activeTab.includes("crypto") && state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
             </div>
             <div class="date ${colorClass}">${latest.date}</div>
           </div>
           <div class="history-container"></div>
         `;
 
-        if (state.activeTab !== "crypto" && state.activeFilter === "all") {
+        if (!state.activeTab.includes("crypto") && state.activeFilter === "all") {
           const toggle = box.querySelector(".history-toggle");
           const historyBox = box.querySelector(".history-container");
 
@@ -446,17 +453,6 @@
         container.appendChild(box);
       });
     }
-
-    document.querySelectorAll(".tab-selector button").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-selector button").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        state.activeTab = btn.getAttribute("data-tab");
-        state.searchQuery = "";
-        document.getElementById("searchInput").value = "";
-        renderFlips();
-      });
-    });
 
     document.querySelectorAll(".filters button").forEach(btn => {
       btn.addEventListener("click", () => {
