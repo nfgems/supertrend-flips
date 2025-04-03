@@ -216,10 +216,12 @@
   <h1>📈 Supertrend Flip Tracker</h1>
 
   <div class="tab-selector">
-    <button data-tab="1d" class="active">Daily 📅</button>
-    <button data-tab="1w">Weekly 🗓️</button>
-    <button data-tab="1m">Monthly 📆</button>
-    <button data-tab="crypto">💫 Crypto</button>
+    <button onclick="switchTab('1d')" class="active">1D</button>
+    <button onclick="switchTab('1w')">1W</button>
+    <button onclick="switchTab('1m')">1M</button>
+    <button onclick="switchTab('crypto-1d')" data-tab="crypto-1d">Crypto 1D</button>
+    <button onclick="switchTab('crypto-1w')" data-tab="crypto-1w">Crypto 1W</button>
+    <button onclick="switchTab('crypto-1m')" data-tab="crypto-1m">Crypto 1M</button>
   </div>
 
   <div class="search-bar">
