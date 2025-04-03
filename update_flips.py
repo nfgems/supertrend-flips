@@ -1467,6 +1467,17 @@ def run_crypto():
         save_flip_history(flip_data, filename)
         logger.info(f"✅ CRYPTO flip detection complete for {label.upper()} timeframe.")
 
+# 🔀 CLI-controlled entry point
 if __name__ == "__main__":
-    run_stocks()
-    run_crypto()
+    import sys
+
+    if "--stocks" in sys.argv:
+        logger.info("📊 Running STOCKS flip update only")
+        run_stocks()
+    elif "--crypto" in sys.argv:
+        logger.info("🪙 Running CRYPTO flip update only")
+        run_crypto()
+    else:
+        logger.info("⚙️ Running BOTH stocks and crypto updates")
+        run_stocks()
+        run_crypto()
