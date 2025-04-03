@@ -1,38 +1,31 @@
 name: Update Supertrend Flips
-
 on:
   schedule:
     - cron: '0 10 * * *'  # 6:00 AM ET / 10:00 AM UTC
     - cron: '0 22 * * *'  # 6:00 PM ET / 10:00 PM UTC
   workflow_dispatch:
-
 jobs:
   update-stocks:
     name: 🟢 Update Stock Flips
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
       - name: 🐍 Set Up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
       - name: 📦 Install Dependencies
         run: pip install -r requirements.txt
-
       - name: 📊 Run Stock Flip Update
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python update_flips.py --stocks
-
       - name: ✅ Commit and Push Stock Flips
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -41,34 +34,30 @@ jobs:
           git config --global user.name "nfgems"
           git add public_flips_*.json
           git commit -m "🧠 Update STOCK flips [auto]" || echo "No changes to commit"
+          git pull --rebase origin main  # Added this line
           git push origin HEAD
-
   update-crypto-1d:
     name: 🪙 Update Crypto Flips 1D
     runs-on: ubuntu-latest
+    needs: [update-stocks]  # Added dependency
     permissions:
       contents: write
-
     steps:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
       - name: 🐍 Set Up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
       - name: 📦 Install Dependencies
         run: pip install -r requirements.txt
-
       - name: 🪙 Run 1D Crypto Flip Update
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python update_flips.py --crypto --timeframe 1d
-
       - name: ✅ Commit and Push 1D Crypto Flips
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -77,34 +66,30 @@ jobs:
           git config --global user.name "nfgems"
           git add public_flips_crypto_1d.json
           git commit -m "🧠 Update CRYPTO 1D flips [auto]" || echo "No changes to commit"
+          git pull --rebase origin main  # Added this line
           git push origin HEAD
-
   update-crypto-1w:
     name: 📆 Update Crypto Flips 1W
     runs-on: ubuntu-latest
+    needs: [update-crypto-1d]  # Added dependency
     permissions:
       contents: write
-
     steps:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
       - name: 🐍 Set Up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
       - name: 📦 Install Dependencies
         run: pip install -r requirements.txt
-
       - name: 🪙 Run 1W Crypto Flip Update
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python update_flips.py --crypto --timeframe 1w
-
       - name: ✅ Commit and Push 1W Crypto Flips
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -113,40 +98,5 @@ jobs:
           git config --global user.name "nfgems"
           git add public_flips_crypto_1w.json
           git commit -m "🧠 Update CRYPTO 1W flips [auto]" || echo "No changes to commit"
-          git push origin HEAD
-
-  update-crypto-1m:
-    name: 🗓️ Update Crypto Flips 1M
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: 📥 Checkout Repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: 🐍 Set Up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: 📦 Install Dependencies
-        run: pip install -r requirements.txt
-
-      - name: 🪙 Run 1M Crypto Flip Update
-        env:
-          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
-          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python update_flips.py --crypto --timeframe 1m
-
-      - name: ✅ Commit and Push 1M Crypto Flips
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          git config --global user.email "nfgems@users.noreply.github.com"
-          git config --global user.name "nfgems"
-          git add public_flips_crypto_1m.json
-          git commit -m "🧠 Update CRYPTO 1M flips [auto]" || echo "No changes to commit"
+          git pull --rebase origin main  # Added this line
           git push origin HEAD
