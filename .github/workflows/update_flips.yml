@@ -9,38 +9,74 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-script:
+  update-stocks:
+    name: 🟢 Update Stock Flips
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 👈 REQUIRED for push to work
+      contents: write
 
     steps:
-      - name: Checkout Repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # ⬅️ Full commit history for Git
+          fetch-depth: 0
 
-      - name: Set Up Python
+      - name: 🐍 Set Up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: 📦 Install Dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Supertrend Script
+      - name: 📊 Run Stock Flip Update
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python update_flips.py
+        run: python update_flips.py --stocks
 
-      - name: Commit and Push Changes
+      - name: ✅ Commit and Push Stock Flips
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config --global user.email "nfgems@users.noreply.github.com"
           git config --global user.name "nfgems"
           git add public_flips_*.json
-          git commit -m "Update Supertrend flips data" || echo "No changes to commit"
+          git commit -m "🧠 Update STOCK flips [auto]" || echo "No changes to commit"
           git push origin HEAD
 
+  update-crypto:
+    name: 🟣 Update Crypto Flips
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🪙 Run Crypto Flip Update
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python update_flips.py --crypto
+
+      - name: ✅ Commit and Push Crypto Flips
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git config --global user.email "nfgems@users.noreply.github.com"
+          git config --global user.name "nfgems"
+          git add public_flips_crypto_*.json
+          git commit -m "🧠 Update CRYPTO flips [auto]" || echo "No changes to commit"
+          git push origin HEAD
