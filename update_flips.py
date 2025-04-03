@@ -3,7 +3,7 @@ import pandas_ta as ta
 import yfinance as yf
 import requests
 import random
-from kucoin.client import Market
+from kucoin.client import Client  
 from alpaca.data.historical.stock import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
@@ -24,7 +24,7 @@ logger = logging.getLogger()
 api_key = os.getenv("ALPACA_API_KEY")
 secret_key = os.getenv("ALPACA_SECRET_KEY")
 client = StockHistoricalDataClient(api_key, secret_key)
-kucoin_client = Market()
+kucoin_client = Client()  
 
 
 SP500 = [
@@ -1322,7 +1322,9 @@ def get_kucoin_ohlc(symbol, timeframe="1d", retries=3, delay=3):
 
     for attempt in range(retries):
         try:
-            candles = kucoin_client.get_kline(symbol, '1day', int(time.time()) - 86400 * 365, int(time.time()))
+            now = int(time.time())
+            one_year_ago = now - 86400 * 365
+            candles = kucoin_client.get_kline(symbol, '1day', one_year_ago, now)
             if not candles:
                 return None
 
