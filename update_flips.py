@@ -1457,7 +1457,7 @@ def run_stocks():
 
 def run_crypto(timeframes=None):
     if timeframes is None:
-        timeframes = ["1d", "1w", "1m"]  # Support all timeframes
+        timeframes = ["1d", "1w"]  # Support only daily and weekly timeframes (removed 1m)
 
     for label in timeframes:
         filename = f"public_flips_crypto_{label}.json"
@@ -1500,7 +1500,6 @@ def run_crypto(timeframes=None):
         save_flip_history(flip_data, filename)
         logger.info(f"✅ CRYPTO flip detection complete for {label.upper()} timeframe.")
 
-
 # 🔀 CLI-controlled entry point
 if __name__ == "__main__":
     import argparse
@@ -1508,7 +1507,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--stocks", action="store_true", help="Run stock flips only")
     parser.add_argument("--crypto", action="store_true", help="Run crypto flips only")
-    parser.add_argument("--timeframe", choices=["1d", "1w", "1m"], help="Specific timeframe to run (used with --crypto)")
+    parser.add_argument("--timeframe", choices=["1d", "1w"], help="Specific timeframe to run (used with --crypto)")
     args = parser.parse_args()
 
     if args.stocks:
