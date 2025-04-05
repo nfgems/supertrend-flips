@@ -481,5 +481,831 @@
 
     fetchAllData();
   </script>
+
+<div id="chartModal" class="chart-modal">
+  <div class="chart-modal-content">
+    <span class="close-chart">&times;</span>
+    <div class="chart-header">
+      <h2 id="chartTitle">Loading Chart...</h2>
+    </div>
+    <div id="tradingview_container"></div>
+  </div>
+</div>
+
+<style>
+  .chart-modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.9);
+  }
+
+  .chart-modal-content {
+    margin: 2% auto;
+    width: 95%;
+    max-width: 1200px;
+    background-color: #111;
+    border: 1px solid #00ff00;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+  }
+
+  .close-chart {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  .close-chart:hover {
+    color: #00ff00;
+  }
+
+  .chart-header {
+    margin-bottom: 10px;
+  }
+
+  .chart-header h2 {
+    color: #00ff00;
+    margin: 0;
+    padding: 0;
+    font-size: 1.5rem;
+  }
+
+  #tradingview_container {
+    height: 700px;
+    width: 100%;
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .chart-modal-content {
+      width: 95%;
+      margin: 1% <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Supertrend Flip Tracker</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Courier New', monospace;
+      background-color: black;
+      color: white;
+    }
+
+    h1 {
+      text-align: center;
+      color: #00ff00;
+      font-size: 2rem;
+      margin-top: 1rem;
+    }
+
+    .tab-selector, .filters, .sub-filters {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .tab-selector button {
+      background-color: #111;
+      color: white;
+      border: 1px solid #888;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .tab-selector button.active {
+      background-color: #00ff00;
+      color: black;
+    }
+
+    .tab-selector button[data-tab="crypto-1d"],
+    .tab-selector button[data-tab="crypto-1w"] {
+      background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet);
+      background-size: 400% 400%;
+      animation: rainbow 5s ease infinite;
+      color: white;
+      border: 2px solid white;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+    }
+
+    @keyframes rainbow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .tab-selector button[data-tab="crypto-1d"].active,
+    .tab-selector button[data-tab="crypto-1w"].active {
+      background-color: #00ff00;
+      color: black;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+    }
+
+    .filters button, .sub-filters button {
+      background-color: #111;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .filters button.active, .sub-filters button.active {
+      background-color: #00ff00;
+      color: black;
+    }
+
+    .sub-filters {
+      margin-top: -0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .sub-filters button {
+      background-color: #222;
+      color: #ccc;
+      border: 1px solid #444;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.85rem;
+    }
+
+    .search-bar {
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+
+    .search-bar input {
+      background-color: #111;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      width: 250px;
+      max-width: 90%;
+    }
+
+    .symbol-section {
+      max-width: 700px;
+      margin: 0 auto 2rem;
+      padding: 0 1rem;
+    }
+
+    .flip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #111;
+      padding: 1rem;
+      margin: 0.4rem 0;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #00ff0040;
+      position: relative;
+      flex-direction: column;
+    }
+
+    .flip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .flip-left {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .emoji {
+      font-size: 1.4rem;
+    }
+
+    .symbol {
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .category-label {
+      font-size: 0.7rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      background-color: #222;
+      color: #aaa;
+    }
+
+    .flipped {
+      font-size: 1rem;
+      color: #999;
+    }
+
+    .green {
+      color: #00ff00;
+      font-weight: bold;
+    }
+
+    .red {
+      color: #ff0000;
+      font-weight: bold;
+    }
+
+    .history-toggle {
+      font-size: 1rem;
+      cursor: pointer;
+      color: #888;
+    }
+
+    .history-toggle:hover {
+      text-decoration: underline;
+    }
+
+    .history-container {
+      display: none;
+      margin-top: 0.8rem;
+      width: 100%;
+    }
+
+    .history-entry {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.4rem 1rem;
+      background-color: #1a1a1a;
+      margin-top: 0.3rem;
+      border-radius: 6px;
+    }
+
+    .no-data {
+      text-align: center;
+      color: #999;
+      font-style: italic;
+      padding: 2rem 1rem;
+    }
+
+    @media (max-width: 600px) {
+      .flip {
+        gap: 0.5rem;
+      }
+    }
+    
+    /* Chart modal styles */
+    .chart-modal {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.9);
+    }
+
+    .chart-modal-content {
+      margin: 2% auto;
+      width: 95%;
+      max-width: 1200px;
+      background-color: #111;
+      border: 1px solid #00ff00;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+    }
+
+    .close-chart {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .close-chart:hover {
+      color: #00ff00;
+    }
+
+    .chart-header {
+      margin-bottom: 10px;
+    }
+
+    .chart-header h2 {
+      color: #00ff00;
+      margin: 0;
+      padding: 0;
+      font-size: 1.5rem;
+    }
+
+    #tradingview_container {
+      height: 700px;
+      width: 100%;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      .chart-modal-content {
+        width: 95%;
+        margin: 1% auto;
+        padding: 10px;
+      }
+
+      #tradingview_container {
+        height: 500px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>📈 Supertrend Flip Tracker</h1>
+  <div class="tab-selector">
+    <button onclick="switchTab('1d')" class="active">1D STOCK</button>
+    <button onclick="switchTab('1w')">1W STOCK</button>
+    <button onclick="switchTab('1m')">1M STOCK</button>
+    <button onclick="switchTab('crypto-1d')" data-tab="crypto-1d">Crypto 1D</button>
+    <button onclick="switchTab('crypto-1w')" data-tab="crypto-1w">Crypto 1W</button>
+    <!-- Removed Crypto 1M button -->
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search ticker..." />
+  </div>
+
+  <div class="filters">
+    <button data-filter="all" class="active">All</button>
+    <button data-filter="green">Bullish 🐂</button>
+    <button data-filter="red">Bearish 🐻</button>
+    <button data-filter="recent">Most Recent</button>
+  </div>
+
+  <div class="sub-filters" id="subFilters" style="display:none">
+    <button data-sort="alpha" class="active">A–Z</button>
+    <button data-sort="recent">Most Recent</button>
+  </div>
+
+  <div id="flipContainer" class="symbol-section"></div>
+  
+  <!-- Chart Modal -->
+  <div id="chartModal" class="chart-modal">
+    <div class="chart-modal-content">
+      <span class="close-chart">&times;</span>
+      <div class="chart-header">
+        <h2 id="chartTitle">Loading Chart...</h2>
+      </div>
+      <div id="tradingview_container"></div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      activeTab: "1d",
+      activeFilter: "all",
+      sortBy: "alpha",
+      searchQuery: "",
+      data: {
+        "1d": null,
+        "1w": null,
+        "1m": null,
+        "crypto-1d": null,
+        "crypto-1w": null
+      }
+    };
+
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      document.querySelectorAll(".tab-selector button").forEach(b => b.classList.remove("active"));
+      document.querySelector(`.tab-selector button[onclick="switchTab('${tabId}')"]`)?.classList.add("active");
+      state.searchQuery = "";
+      document.getElementById("searchInput").value = "";
+      renderFlips();
+    }
+
+    function fetchAllData() {
+      const safeFetch = (url) =>
+        fetch(url)
+          .then(res => res.ok ? res.json() : {})
+          .catch(() => ({}));
+      
+      return Promise.all([
+        safeFetch("public_flips_1d.json"),
+        safeFetch("public_flips_1w.json"),
+        safeFetch("public_flips_1m.json"),
+        safeFetch("public_flips_crypto_1d.json"),
+        safeFetch("public_flips_crypto_1w.json")
+      ]).then(([d1, d2, d3, dCrypto1d, dCrypto1w]) => {
+        state.data["1d"] = d1;
+        state.data["1w"] = d2;
+        state.data["1m"] = d3;
+        state.data["crypto-1d"] = dCrypto1d;
+        state.data["crypto-1w"] = dCrypto1w;
+        renderFlips();
+      });
+    }
+
+    function findSearchMatches() {
+      const query = state.searchQuery.toLowerCase().trim();
+      if (!query) return [];
+      
+      const matches = [];
+      const timeframes = ["1d", "1w", "1m", "crypto-1d", "crypto-1w"];
+      
+      timeframes.forEach(timeframe => {
+        const timeframeData = state.data[timeframe];
+        if (!timeframeData) return;
+        
+        Object.entries(timeframeData).forEach(([symbol, flips]) => {
+          if (symbol.toLowerCase().includes(query)) {
+            matches.push({
+              symbol,
+              timeframe,
+              flips,
+              category: timeframe.includes("crypto") ? "CRYPTO" : "STOCK"
+            });
+          }
+        });
+      });
+      
+      return matches;
+    }
+
+    function renderSearchResults(matches) {
+      const container = document.getElementById("flipContainer");
+      container.innerHTML = "";
+
+      if (matches.length === 0) {
+        container.innerHTML = `<div class="no-data">No matches found.</div>`;
+        return;
+      }
+
+      matches.forEach(({ symbol, timeframe, flips, category }) => {
+        const latest = flips[0];
+        const emoji = latest.type === "green" ? "🐂" : "🐻";
+        const colorClass = latest.type === "green" ? "green" : "red";
+
+        const box = document.createElement("div");
+        box.className = `flip ${latest.type}`;
+
+        box.innerHTML = `
+          <div class="flip-header">
+            <div class="flip-left">
+              <span class="emoji">${emoji}</span>
+              <span class="symbol">${symbol}</span>
+              <span class="category-label">${timeframe.toUpperCase()} ${category}</span>
+              <span class="flipped">flipped</span>
+              <span class="${colorClass}">${latest.type.toUpperCase()}</span>
+            </div>
+            <div class="date ${colorClass}">${latest.date}</div>
+          </div>
+        `;
+
+        box.addEventListener('click', () => {
+          switchTab(timeframe);
+          state.searchQuery = symbol;
+          renderFlips();
+        });
+
+        container.appendChild(box);
+      });
+    }
+
+    function renderFlips() {
+      const container = document.getElementById("flipContainer");
+      const subFilters = document.getElementById("subFilters");
+      container.innerHTML = "";
+
+      const searchMatches = findSearchMatches();
+      if (state.searchQuery && searchMatches.length > 0) {
+        renderSearchResults(searchMatches);
+        return;
+      }
+
+      let entries = [];
+      const processedSymbols = new Set();
+      const currentDataSource = state.data[state.activeTab];
+
+      if (!currentDataSource) {
+        container.innerHTML = `<div class="no-data">No data available for this timeframe.</div>`;
+        return;
+      }
+
+      for (let [symbol, flips] of Object.entries(currentDataSource)) {
+        if (processedSymbols.has(symbol)) continue;
+        if (!Array.isArray(flips) || flips.length === 0) continue;
+        if (state.searchQuery && !symbol.toLowerCase().includes(state.searchQuery.toLowerCase())) continue;
+
+        const latest = flips[0];
+        if (state.activeFilter === "green" || state.activeFilter === "red") {
+          if (latest.type !== state.activeFilter) continue;
+        }
+
+        processedSymbols.add(symbol);
+        entries.push({ 
+          symbol, 
+          flips, 
+          category: state.activeTab.includes("crypto") ? "CRYPTO" : "STOCK",
+          latestDate: new Date(latest.date)
+        });
+      }
+
+      if (state.activeFilter === "recent" || 
+          ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent")) {
+        entries.sort((a, b) => b.latestDate - a.latestDate);
+      } else {
+        entries.sort((a, b) => a.symbol.localeCompare(b.symbol));
+      }
+
+      if (entries.length === 0) {
+        container.innerHTML = `<div class="no-data">No matches for selected filters or search.</div>`;
+        return;
+      }
+
+      entries.forEach(({ symbol, flips, category }) => {
+        const latest = flips[0];
+        const emoji = latest.type === "green" ? "🐂" : "🐻";
+        const colorClass = latest.type === "green" ? "green" : "red";
+        const label = state.searchQuery ? `<span class="category-label">${category}</span>` : "";
+
+        const box = document.createElement("div");
+        box.className = `flip ${latest.type}`;
+
+        box.innerHTML = `
+          <div class="flip-header">
+            <div class="flip-left">
+              <span class="emoji">${emoji}</span>
+              <span class="symbol">${symbol}</span>
+              ${label}
+              <span class="flipped">flipped</span>
+              <span class="${colorClass}">${latest.type.toUpperCase()}</span>
+              ${!state.activeTab.includes("crypto") && state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
+            </div>
+            <div class="date ${colorClass}">${latest.date}</div>
+          </div>
+          <div class="history-container"></div>
+        `;
+
+        if (!state.activeTab.includes("crypto") && state.activeFilter === "all") {
+          const toggle = box.querySelector(".history-toggle");
+          const historyBox = box.querySelector(".history-container");
+
+          toggle?.addEventListener("click", () => {
+            if (historyBox.style.display === "block") {
+              historyBox.style.display = "none";
+            } else {
+              const timeframeFlips = flips.filter(f => f.type);
+              historyBox.innerHTML = timeframeFlips.map(f => `
+                <div class="history-entry">
+                  <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
+                  <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
+                </div>
+              `).join("");
+              historyBox.style.display = "block";
+            }
+          });
+        }
+
+        container.appendChild(box);
+      });
+      
+      // Setup ticker click handlers after rendering
+      setupTickerClickHandlers();
+    }
+
+    document.querySelectorAll(".filters button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.activeFilter = btn.getAttribute("data-filter");
+        document.getElementById("subFilters").style.display =
+          (state.activeFilter === "green" || state.activeFilter === "red") ? "flex" : "none";
+        renderFlips();
+      });
+    });
+
+    document.querySelectorAll(".sub-filters button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".sub-filters button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.sortBy = btn.getAttribute("data-sort");
+        renderFlips();
+      });
+    });
+
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+      state.searchQuery = e.target.value;
+      renderFlips();
+    });
+    
+    // TradingView chart functions
+    // Load the TradingView JavaScript library
+    function loadTradingViewScript() {
+      return new Promise((resolve) => {
+        if (window.TradingView) {
+          resolve();
+          return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = 'https://s3.tradingview.com/tv.js';
+        script.async = true;
+        script.onload = resolve;
+        document.head.appendChild(script);
+      });
+    }
+
+    // Create and render the TradingView widget with full capabilities
+    function createInteractiveTradingViewWidget(symbol, isStock, timeframe) {
+      const container = document.getElementById('tradingview_container');
+      container.innerHTML = ''; // Clear any existing chart
+
+      // Format the symbol appropriately
+      let formattedSymbol;
+      if (isStock) {
+        formattedSymbol = symbol; // Regular stock symbol
+      } else {
+        formattedSymbol = `KUCOIN:${symbol}USDT`; // Crypto format for KuCoin
+        // Try to fall back to Binance if the symbol isn't found
+        if (window.tradingViewWidget) {
+          window.tradingViewWidget.onChartReady(() => {
+            const symbolInfo = window.tradingViewWidget.symbolInterval();
+            if (symbolInfo && symbolInfo.includes('symbol_not_found')) {
+              // Try Binance instead
+              window.tradingViewWidget.setSymbol(`BINANCE:${symbol}USDT`, window.tradingViewWidget.chart().resolution());
+            }
+          });
+        }
+      }
+
+      // Set initial chart interval based on timeframe
+      const interval = timeframe.includes('1w') ? 'W' : 
+                       timeframe.includes('1m') ? 'M' : 'D';
+
+      // Create the widget with full interactivity
+      window.tradingViewWidget = new TradingView.widget({
+        "autosize": true,
+        "symbol": formattedSymbol,
+        "interval": interval,
+        "timezone": "Etc/UTC",
+        "theme": "dark",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#111111",
+        "enable_publishing": false,
+        "withdateranges": true,
+        "range": timeframe.includes('1w') ? "12M" : "6M",
+        "allow_symbol_change": true,
+        "details": true,
+        "hotlist": true,
+        "calendar": true,
+        "studies": ["STD;Supertrend"],
+        "container_id": "tradingview_container",
+        "show_popup_button": true,
+        "popup_width": "1000",
+        "popup_height": "650",
+        "drawings_access": { 
+          "type": "all", 
+          "tools": [
+            { "name": "Regression Trend" },
+            { "name": "Trend Line" },
+            { "name": "Trend Angle" },
+            { "name": "Horizontal Line" },
+            { "name": "Horizontal Ray" },
+            { "name": "Vertical Line" },
+            { "name": "Arrow" },
+            { "name": "Ray" },
+            { "name": "Extended" },
+            { "name": "Parallel Channel" },
+            { "name": "Disjoint Angle" },
+            { "name": "Flat Top/Bottom" },
+            { "name": "Pitchfork" },
+            { "name": "Schiff Pitchfork" },
+            { "name": "Fibonacci Retracement" }
+          ]
+        },
+        "saved_data": JSON.parse(localStorage.getItem(`tradingViewSettings_${symbol}`) || 'null'),
+        "studies_overrides": {
+          "supertrend.plot.color.0": "#FF0000",  // Bear color (red)
+          "supertrend.plot.color.1": "#00FF00"   // Bull color (green)
+        },
+        "overrides": {
+          "mainSeriesProperties.candleStyle.upColor": "#00C805",
+          "mainSeriesProperties.candleStyle.downColor": "#FF0000",
+          "mainSeriesProperties.candleStyle.borderUpColor": "#00C805",
+          "mainSeriesProperties.candleStyle.borderDownColor": "#FF0000",
+          "mainSeriesProperties.candleStyle.wickUpColor": "#00C805",
+          "mainSeriesProperties.candleStyle.wickDownColor": "#FF0000",
+          "paneProperties.background": "#111111",
+          "paneProperties.vertGridProperties.color": "#222222",
+          "paneProperties.horzGridProperties.color": "#222222",
+          "symbolWatermarkProperties.transparency": 90,
+          "scalesProperties.textColor": "#AAA",
+          "scalesProperties.backgroundColor": "#111111"
+        }
+      });
+
+      // Save user's chart setup when they close the chart
+      window.tradingViewWidget.onChartReady(() => {
+        // This ensures the widget is fully loaded
+        const chart = window.tradingViewWidget.chart();
+        
+        // Add Supertrend by default if not already added
+        chart.createStudy('Supertrend', false, false, {}, {
+          "plot.color.0": "#FF0000",  // Bear color (red)
+          "plot.color.1": "#00FF00"   // Bull color (green)
+        });
+        
+        // Save chart settings when closed
+        window.tradingViewWidget.subscribe('onAutoSaveNeeded', () => {
+          try {
+            localStorage.setItem(`tradingViewSettings_${symbol}`, JSON.stringify(window.tradingViewWidget.save()));
+          } catch (error) {
+            console.warn('Failed to save chart settings', error);
+          }
+        });
+      });
+    }
+
+    // Handle clicking on a ticker to show the chart
+    function setupTickerClickHandlers() {
+      document.querySelectorAll('.flip').forEach(flipElement => {
+        flipElement.addEventListener('click', async (e) => {
+          // Don't trigger chart if clicking on the history toggle
+          if (e.target.classList.contains('history-toggle') || 
+              e.target.closest('.history-container')) {
+            return;
+          }
+
+          // Get the symbol from the clicked element
+          const symbol = flipElement.querySelector('.symbol').textContent;
+          
+          // Determine if it's a stock or crypto
+          const categoryLabel = flipElement.querySelector('.category-label').textContent;
+          const isStock = !categoryLabel.includes('CRYPTO');
+          
+          // Get current timeframe from active tab
+          const activeTabButton = document.querySelector('.tab-selector button.active');
+          const timeframe = activeTabButton ? activeTabButton.getAttribute('data-tab') || 
+                                         (activeTabButton.getAttribute('onclick') || '').match(/'([^']+)'/) ?
+                                         activeTabButton.getAttribute('onclick').match(/'([^']+)'/)[1] : '1d' : '1d';
+          
+          // Update modal title
+          document.getElementById('chartTitle').textContent = 
+            `${symbol} Chart (${isStock ? 'Stock' : 'Crypto'})`;
+          
+          // Show the modal
+          document.getElementById('chartModal').style.display = 'block';
+          
+          // Load TradingView script if needed
+          await loadTradingViewScript();
+          
+          // Create the interactive widget
+          createInteractiveTradingViewWidget(symbol, isStock, timeframe);
+        });
+      });
+    }
+
+    // Close modal when X is clicked
+    function setupModalCloseHandlers() {
+      const closeButton = document.querySelector('.close-chart');
+      if (closeButton) {
+        closeButton.addEventListener('click', () => {
+          document.getElementById('chartModal').style.display = 'none';
+        });
+      }
+      
+      // Close modal when clicking outside
+      window.addEventListener('click', (e) => {
+        const modal = document.getElementById('chartModal');
+        if (e.target === modal) {
+          modal.style.display = 'none';
+        }
+      });
+      
+      // Close modal with Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          document.getElementById('chartModal').style.display = 'none';
+        }
+      });
+    }
+
+    // Initialize everything
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchAllData();
+      setupModalCloseHandlers();
+    });
+  </script>
 </body>
 </html>
