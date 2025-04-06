@@ -109,10 +109,73 @@
       max-width: 90%;
     }
 
+    .content-wrapper {
+      position: relative;
+      display: flex;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
     .symbol-section {
-      max-width: 700px;
-      margin: 0 auto 2rem;
+      flex: 1;
       padding: 0 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .alpha-sidebar {
+      position: sticky;
+      top: 20px;
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      margin-right: 5px;
+      padding: 5px;
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 20px;
+      z-index: 10;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+      max-height: 80vh;
+      overflow-y: auto;
+      scrollbar-width: none; /* Hide scrollbar for Firefox */
+      -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
+    }
+
+    .alpha-sidebar::-webkit-scrollbar {
+      display: none; /* Hide scrollbar for Chrome, Safari, and Opera */
+    }
+
+    .alpha-sidebar a {
+      color: #00ff00;
+      text-decoration: none;
+      text-align: center;
+      font-size: 0.8rem;
+      padding: 3px 6px;
+      margin: 1px 0;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .alpha-sidebar a.active {
+      background-color: #00ff00;
+      color: black;
+      font-weight: bold;
+    }
+
+    .alpha-sidebar a:hover {
+      background-color: #005500;
+      transform: scale(1.1);
+    }
+
+    .letter-heading {
+      background-color: #222;
+      color: #00ff00;
+      padding: 5px 10px;
+      margin: 10px 0 5px 0;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      scroll-margin-top: 20px;
     }
 
     .flip {
@@ -271,11 +334,38 @@
       #tradingview_container {
         height: 500px;
       }
+      
+      .alpha-sidebar {
+        position: sticky;
+        top: 10px;
+        right: 0;
+        padding: 3px;
+      }
+      
+      .alpha-sidebar a {
+        font-size: 0.7rem;
+        padding: 2px 4px;
+      }
     }
     
     @media (max-width: 600px) {
       .flip {
         gap: 0.5rem;
+      }
+      
+      .content-wrapper {
+        flex-direction: column-reverse;
+      }
+      
+      .alpha-sidebar {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 0 auto 10px;
+        max-width: 90%;
+        padding: 5px;
+        max-height: none;
       }
     }
   </style>
@@ -307,7 +397,10 @@
     <button data-sort="recent">Most Recent</button>
   </div>
 
-  <div id="flipContainer" class="symbol-section"></div>
+  <div class="content-wrapper">
+    <div id="flipContainer" class="symbol-section"></div>
+    <div id="alphaSidebar" class="alpha-sidebar"></div>
+  </div>
   
   <!-- Chart Modal -->
   <div id="chartModal" class="chart-modal">
@@ -335,7 +428,8 @@
         "1m": null,
         "crypto-1d": null,
         "crypto-1w": null
-      }
+      },
+      alphabeticalSections: {}
     };
 
     function switchTab(tabId) {
@@ -398,6 +492,9 @@
     function renderSearchResults(matches) {
       const container = document.getElementById("flipContainer");
       container.innerHTML = "";
+      
+      // Hide alphabetical sidebar when searching
+      document.getElementById("alphaSidebar").style.display = "none";
 
       if (matches.length === 0) {
         container.innerHTML = `<div class="no-data">No matches found.</div>`;
@@ -438,11 +535,161 @@
       });
     }
 
-    function renderFlips() {
+    function createAlphabeticSections(entries) {
+      const alphabet = {};
+      
+      // Group entries by first letter
+      entries.forEach(entry => {
+        const firstLetter = entry.symbol.charAt(0).toUpperCase();
+        if (!alphabet[firstLetter]) {
+          alphabet[firstLetter] = [];
+        }
+        alphabet[firstLetter].push(entry);
+      });
+      
+      // Keep track of which letters are present
+      state.alphabeticalSections = {};
+      
       const container = document.getElementById("flipContainer");
-      const subFilters = document.getElementById("subFilters");
       container.innerHTML = "";
+      
+      // Create alphabetical sidebar
+      const sidebar = document.getElementById("alphaSidebar");
+      sidebar.innerHTML = "";
+      sidebar.style.display = "flex";
+      
+      // Sort the letter keys
+      const sortedLetters = Object.keys(alphabet).sort();
+      
+      // Add letter sections and sidebar links
+      sortedLetters.forEach(letter => {
+        // Add heading for this letter
+        const heading = document.createElement("div");
+        heading.className = "letter-heading";
+        heading.id = `section-${letter}`;
+        heading.textContent = letter;
+        container.appendChild(heading);
+        
+        // Add to state tracking
+        state.alphabeticalSections[letter] = true;
+        
+        // Add link to sidebar
+        const link = document.createElement("a");
+        link.textContent = letter;
+        link.href = `#section-${letter}`;
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          document.getElementById(`section-${letter}`).scrollIntoView({ behavior: "smooth" });
+          
+          // Update active letter in sidebar
+          document.querySelectorAll(".alpha-sidebar a").forEach(a => a.classList.remove("active"));
+          link.classList.add("active");
+        });
+        sidebar.appendChild(link);
+        
+        // Add all entries for this letter
+        alphabet[letter].forEach(entry => {
+          createFlipBox(entry, container);
+        });
+      });
+      
+      // If no entries exist, show a message
+      if (sortedLetters.length === 0) {
+        container.innerHTML = `<div class="no-data">No matches for selected filters.</div>`;
+        sidebar.style.display = "none";
+      }
+      
+      // Add scroll event listener to highlight the current letter
+      window.addEventListener("scroll", updateActiveLetter);
+    }
+    
+    function updateActiveLetter() {
+      // Get all letter headings
+      const headings = document.querySelectorAll(".letter-heading");
+      if (!headings.length) return;
+      
+      // Find which heading is currently at the top of the viewport
+      let currentHeading = null;
+      const scrollPosition = window.scrollY + 50; // Add offset for better UX
+      
+      headings.forEach(heading => {
+        const headingPosition = heading.offsetTop;
+        if (headingPosition <= scrollPosition) {
+          currentHeading = heading;
+        }
+      });
+      
+      if (currentHeading) {
+        const letter = currentHeading.textContent;
+        // Update active letter in sidebar
+        document.querySelectorAll(".alpha-sidebar a").forEach(a => {
+          a.classList.remove("active");
+          if (a.textContent === letter) {
+            a.classList.add("active");
+          }
+        });
+      }
+    }
 
+    function createFlipBox(entry, container) {
+      const { symbol, flips, category } = entry;
+      const latest = flips[0];
+      const emoji = latest.type === "green" ? "🐂" : "🐻";
+      const colorClass = latest.type === "green" ? "green" : "red";
+      const label = state.searchQuery ? `<span class="category-label">${category}</span>` : "";
+
+      const box = document.createElement("div");
+      box.className = `flip ${latest.type}`;
+      box.dataset.symbol = symbol;
+      box.dataset.category = category;
+      box.dataset.timeframe = state.activeTab;
+
+      box.innerHTML = `
+        <div class="flip-header">
+          <div class="flip-left">
+            <span class="emoji">${emoji}</span>
+            <span class="symbol">${symbol}</span>
+            ${label}
+            <span class="flipped">flipped</span>
+            <span class="${colorClass}">${latest.type.toUpperCase()}</span>
+            ${!state.activeTab.includes("crypto") && state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
+          </div>
+          <div class="date ${colorClass}">${latest.date}</div>
+        </div>
+        <div class="history-container"></div>
+      `;
+
+      if (!state.activeTab.includes("crypto") && state.activeFilter === "all") {
+        const toggle = box.querySelector(".history-toggle");
+        const historyBox = box.querySelector(".history-container");
+
+        toggle?.addEventListener("click", (e) => {
+          e.stopPropagation(); // Prevent chart from opening
+          if (historyBox.style.display === "block") {
+            historyBox.style.display = "none";
+          } else {
+            const timeframeFlips = flips.filter(f => f.type);
+            historyBox.innerHTML = timeframeFlips.map(f => `
+              <div class="history-entry">
+                <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
+                <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
+              </div>
+            `).join("");
+            historyBox.style.display = "block";
+          }
+        });
+      }
+
+      box.addEventListener('click', function(e) {
+        if (!e.target.classList.contains('history-toggle') && !e.target.closest('.history-container')) {
+          showChart(symbol, category === "CRYPTO" ? false : true, state.activeTab);
+        }
+      });
+
+      container.appendChild(box);
+    }
+
+    function renderFlips() {
       const searchMatches = findSearchMatches();
       if (state.searchQuery && searchMatches.length > 0) {
         renderSearchResults(searchMatches);
@@ -454,7 +701,9 @@
       const currentDataSource = state.data[state.activeTab];
 
       if (!currentDataSource) {
+        const container = document.getElementById("flipContainer");
         container.innerHTML = `<div class="no-data">No data available for this timeframe.</div>`;
+        document.getElementById("alphaSidebar").style.display = "none";
         return;
       }
 
@@ -480,71 +729,27 @@
       if (state.activeFilter === "recent" || 
           ((state.activeFilter === "green" || state.activeFilter === "red") && state.sortBy === "recent")) {
         entries.sort((a, b) => b.latestDate - a.latestDate);
-      } else {
-        entries.sort((a, b) => a.symbol.localeCompare(b.symbol));
-      }
-
-      if (entries.length === 0) {
-        container.innerHTML = `<div class="no-data">No matches for selected filters or search.</div>`;
-        return;
-      }
-
-      entries.forEach(({ symbol, flips, category }) => {
-        const latest = flips[0];
-        const emoji = latest.type === "green" ? "🐂" : "🐻";
-        const colorClass = latest.type === "green" ? "green" : "red";
-        const label = state.searchQuery ? `<span class="category-label">${category}</span>` : "";
-
-        const box = document.createElement("div");
-        box.className = `flip ${latest.type}`;
-        box.dataset.symbol = symbol;
-        box.dataset.category = category;
-        box.dataset.timeframe = state.activeTab;
-
-        box.innerHTML = `
-          <div class="flip-header">
-            <div class="flip-left">
-              <span class="emoji">${emoji}</span>
-              <span class="symbol">${symbol}</span>
-              ${label}
-              <span class="flipped">flipped</span>
-              <span class="${colorClass}">${latest.type.toUpperCase()}</span>
-              ${!state.activeTab.includes("crypto") && state.activeFilter === "all" ? '<span class="history-toggle" title="View history">📂</span>' : ""}
-            </div>
-            <div class="date ${colorClass}">${latest.date}</div>
-          </div>
-          <div class="history-container"></div>
-        `;
-
-        if (!state.activeTab.includes("crypto") && state.activeFilter === "all") {
-          const toggle = box.querySelector(".history-toggle");
-          const historyBox = box.querySelector(".history-container");
-
-          toggle?.addEventListener("click", (e) => {
-            e.stopPropagation(); // Prevent chart from opening
-            if (historyBox.style.display === "block") {
-              historyBox.style.display = "none";
-            } else {
-              const timeframeFlips = flips.filter(f => f.type);
-              historyBox.innerHTML = timeframeFlips.map(f => `
-                <div class="history-entry">
-                  <span class="${f.type === 'green' ? 'green' : 'red'}">${f.date}</span>
-                  <span class="${f.type === 'green' ? 'green' : 'red'}">${f.type.toUpperCase()}</span>
-                </div>
-              `).join("");
-              historyBox.style.display = "block";
-            }
-          });
+        
+        // For recent view, don't use alphabetic sections
+        const container = document.getElementById("flipContainer");
+        container.innerHTML = "";
+        document.getElementById("alphaSidebar").style.display = "none";
+        
+        if (entries.length === 0) {
+          container.innerHTML = `<div class="no-data">No matches for selected filters or search.</div>`;
+          return;
         }
-
-        box.addEventListener('click', function(e) {
-          if (!e.target.classList.contains('history-toggle') && !e.target.closest('.history-container')) {
-            showChart(symbol, category === "CRYPTO" ? false : true, state.activeTab);
-          }
+        
+        entries.forEach(entry => {
+          createFlipBox(entry, container);
         });
-
-        container.appendChild(box);
-      });
+      } else {
+        // Sort alphabetically
+        entries.sort((a, b) => a.symbol.localeCompare(b.symbol));
+        
+        // Create alphabetic sections
+        createAlphabeticSections(entries);
+      }
     }
 
     document.querySelectorAll(".filters button").forEach(btn => {
@@ -670,30 +875,31 @@
       }
     }
 
-    // Close modal when X is clicked
-    document.querySelector('.close-chart').addEventListener('click', () => {
-      document.getElementById('chartModal').style.display = 'none';
-    });
-    
-    // Close modal when clicking outside
-    window.addEventListener('click', (e) => {
-      const modal = document.getElementById('chartModal');
-      if (e.target === modal) {
-        modal.style.display = 'none';
-      }
-    });
-    
-    // Close modal with Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        document.getElementById('chartModal').style.display = 'none';
-      }
-    });
+// Close modal when X is clicked
+document.querySelector('.close-chart').addEventListener('click', () => {
+  document.getElementById('chartModal').style.display = 'none';
+});
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      fetchAllData();
-    });
+// Close modal when clicking outside
+window.addEventListener('click', (e) => {
+  const modal = document.getElementById('chartModal');
+  if (e.target === modal) {
+    modal.style.display = 'none';
+  }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('chartModal').style.display = 'none';
+  }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  fetchAllData();
+});
+
   </script>
 </body>
 </html>
